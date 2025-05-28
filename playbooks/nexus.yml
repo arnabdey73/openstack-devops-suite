@@ -1,0 +1,98 @@
+---
+# Nexus Repository deployment playbook
+- name: Deploy Nexus Repository
+  hosts: nexus_servers
+  become: true
+  tags:
+    - nexus
+    - repository
+    - artifacts
+  
+  pre_tasks:
+    - name: Ensure Java is installed
+      package:
+        name: 
+          - openjdk-8-jdk
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure Java is installed (RHEL/CentOS)
+      package:
+        name:
+          - java-1.8.0-openjdk
+        state: present
+      when: ansible_os_family == 'RedHat'
+      
+    - name: Create Nexus user
+      user:
+        name: nexus
+        shell: /bin/bash
+        home: /opt/nexus
+        system: yes
+        create_home: yes
+      
+    - name: Download and extract Nexus
+      unarchive:
+        src: https://download.sonatype.com/nexus/3/latest-unix.tar.gz
+        dest: /opt
+        remote_src: yes
+        owner: nexus
+        group: nexus
+      register: nexus_download
+      
+    - name: Find Nexus directory
+      find:
+        paths: /opt
+        patterns: "nexus-*"
+        file_type: directory
+      register: nexus_dir_find
+      when: nexus_download.changed
+      
+    - name: Create Nexus symlink
+      file:
+        src: "{{ nexus_dir_find.files[0].path }}"
+        dest: /opt/nexus
+        state: link
+        owner: nexus
+        group: nexus
+      when: nexus_download.changed and nexus_dir_find.files
+
+  roles:
+    - nexus_repo
+
+  post_tasks:
+    - name: Configure firewall for Nexus
+      ufw:
+        rule: allow
+        port: 8081
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+
+    - name: Configure firewall for Docker Registry
+      ufw:
+        rule: allow
+        port: 5000
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+
+    - name: Wait for Nexus to become available
+      uri:
+        url: http://localhost:8081/
+        status_code: 200
+        timeout: 5
+      register: nexus_startup
+      retries: 60
+      delay: 5
+      until: nexus_startup is success
+      changed_when: false
+      
+    - name: Get admin password
+      slurp:
+        src: /opt/sonatype-work/nexus3/admin.password
+      register: admin_password_file
+      ignore_errors: yes
+      
+    - name: Display initial admin password
+      debug:
+        msg: "Initial Nexus admin password: {{ admin_password_file['content'] | b64decode | trim }}"
+      when: admin_password_file is succeeded

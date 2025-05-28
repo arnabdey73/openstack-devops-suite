@@ -1,0 +1,60 @@
+---
+# Jenkins deployment playbook
+- name: Deploy Jenkins CI Server
+  hosts: jenkins_servers
+  become: true
+  tags:
+    - jenkins
+    - ci
+  
+  pre_tasks:
+    - name: Ensure Java is installed
+      package:
+        name: 
+          - openjdk-11-jdk
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure Java is installed (RHEL/CentOS)
+      package:
+        name:
+          - java-11-openjdk
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Create Jenkins data directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: 1000
+        group: 1000
+        mode: '0755'
+      with_items:
+        - /var/jenkins_home
+        - /var/jenkins_home/plugins
+
+  roles:
+    - jenkins_ci
+
+  post_tasks:
+    - name: Configure firewall for Jenkins
+      ufw:
+        rule: allow
+        port: 8080
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+
+    - name: Wait for Jenkins to start up
+      uri:
+        url: http://localhost:8080/login
+        status_code: 200
+        timeout: 5
+      register: jenkins_startup
+      retries: 60
+      delay: 5
+      until: jenkins_startup is success
+      changed_when: false
+
+    - name: Display Jenkins initial admin password
+      debug:
+        msg: "Initial Jenkins admin password: {{ jenkins_admin_password }}"

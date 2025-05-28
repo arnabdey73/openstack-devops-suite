@@ -1,0 +1,24 @@
+---
+# Handlers for nexus_repo role
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart nexus
+  systemd:
+    name: nexus
+    state: restarted
+  when: ansible_service_mgr == 'systemd'
+
+- name: wait for nexus to start
+  uri:
+    url: "http://localhost:{{ nexus_port }}/{{ nexus_context_path | trim('/') }}/service/rest/v1/status"
+    status_code: 200
+    timeout: 5
+  register: nexus_status_check
+  retries: 60
+  delay: 5
+  until: nexus_status_check is success
+  changed_when: false

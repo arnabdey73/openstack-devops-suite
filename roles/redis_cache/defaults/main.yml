@@ -1,0 +1,80 @@
+---
+# Default variables for the redis_cache role
+
+# Redis version
+redis_version: "7.0.11"
+
+# System user and group for Redis
+redis_user: redis
+redis_group: redis
+
+# Directory configuration
+redis_home: /var/lib/redis
+redis_data_dir: /var/lib/redis/data
+redis_log_dir: /var/log/redis
+redis_config_dir: /etc/redis
+
+# Network settings
+redis_bind: 0.0.0.0
+redis_port: 6379
+redis_protected_mode: "yes"
+redis_tcp_backlog: 511
+redis_tcp_keepalive: 300
+redis_timeout: 0
+
+# Authentication
+redis_password: ""
+redis_require_pass: "{{ redis_password | length > 0 }}"
+
+# Performance settings
+redis_tcp_nodelay: "yes"
+redis_maxclients: 10000
+redis_maxmemory: "{{ (ansible_memtotal_mb * 0.8) | int }}mb"
+redis_maxmemory_policy: "volatile-lru"
+
+# Persistence
+redis_save_to_disk: true
+redis_save_periods:
+  - [900, 1]
+  - [300, 10]
+  - [60, 10000]
+redis_rdb_filename: dump.rdb
+redis_dbfilename: dump.rdb
+redis_appendonly: "yes"
+redis_appendfilename: appendonly.aof
+redis_appendfsync: "everysec"
+redis_no_appendfsync_on_rewrite: "no"
+redis_auto_aof_rewrite_percentage: 100
+redis_auto_aof_rewrite_min_size: 64mb
+
+# Replication
+redis_is_replica: false
+redis_replica_of: ""
+redis_replica_port: 6379
+redis_replica_serve_stale_data: "yes"
+redis_replica_read_only: "yes"
+redis_repl_diskless_sync: "no"
+redis_repl_diskless_sync_delay: 5
+
+# Sentinel
+redis_sentinel_enabled: false
+redis_sentinel_port: 26379
+redis_sentinel_monitors:
+  - name: mymaster
+    host: 127.0.0.1
+    port: 6379
+    quorum: 2
+redis_sentinel_down_after: 30000
+redis_sentinel_failover_timeout: 180000
+redis_sentinel_parallel_syncs: 1
+
+# Security settings
+redis_rename_commands: {}
+
+# Logging
+redis_loglevel: "notice"
+redis_logfile: "{{ redis_log_dir }}/redis.log"
+
+# Advanced settings
+redis_databases: 16
+redis_latency_monitor_threshold: 0

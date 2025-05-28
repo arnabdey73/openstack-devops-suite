@@ -1,0 +1,19 @@
+---
+# Handlers for kafka_broker role
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart kafka
+  systemd:
+    name: kafka
+    state: restarted
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart zookeeper
+  systemd:
+    name: zookeeper
+    state: restarted
+  when: zookeeper_enabled | bool and ansible_service_mgr == 'systemd'

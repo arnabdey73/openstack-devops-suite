@@ -1,0 +1,94 @@
+---
+# Redis deployment playbook
+- name: Deploy Redis Cache
+  hosts: redis_servers
+  become: true
+  tags:
+    - redis
+    - cache
+  
+  pre_tasks:
+    - name: Install Redis build dependencies
+      package:
+        name: 
+          - build-essential
+          - tcl
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Redis build dependencies (RHEL/CentOS)
+      package:
+        name:
+          - gcc
+          - make
+          - tcl
+        state: present
+      when: ansible_os_family == 'RedHat'
+      
+    - name: Create Redis user
+      user:
+        name: redis
+        shell: /bin/false
+        home: /var/lib/redis
+        system: yes
+        create_home: yes
+      
+    - name: Download Redis
+      get_url:
+        url: https://download.redis.io/releases/redis-7.0.11.tar.gz
+        dest: /tmp/redis.tar.gz
+      register: redis_download
+      
+    - name: Extract Redis
+      unarchive:
+        src: /tmp/redis.tar.gz
+        dest: /tmp
+        remote_src: yes
+      when: redis_download.changed
+
+    - name: Build and Install Redis
+      shell: |
+        cd /tmp/redis-7.0.11
+        make
+        make install
+      args:
+        creates: /usr/local/bin/redis-server
+      when: redis_download.changed
+      
+    - name: Create Redis data directory
+      file:
+        path: /var/lib/redis
+        state: directory
+        owner: redis
+        group: redis
+        mode: '0755'
+        
+    - name: Create Redis configuration directory
+      file:
+        path: /etc/redis
+        state: directory
+        owner: redis
+        group: redis
+        mode: '0755'
+
+  roles:
+    - redis_cache
+
+  post_tasks:
+    - name: Configure firewall for Redis
+      ufw:
+        rule: allow
+        port: 6379
+        proto: tcp
+        src: "{{ hostvars[item]['ansible_host'] }}"
+      with_items: 
+        - "{{ groups['redis_servers'] }}"
+        - "{{ groups['infrastructure'] | default([]) }}"
+      when: ansible_os_family == 'Debian'
+      
+    - name: Configure Redis to start on boot
+      systemd:
+        name: redis
+        enabled: yes
+        state: started
+      when: ansible_service_mgr == 'systemd'

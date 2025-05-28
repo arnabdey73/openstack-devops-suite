@@ -1,0 +1,16 @@
+[Unit]
+Description=Nexus Repository Manager
+After=network.target
+
+[Service]
+Type=forking
+LimitNOFILE=65536
+ExecStart={{ nexus_installation_dir }}/bin/nexus start
+ExecStop={{ nexus_installation_dir }}/bin/nexus stop
+User={{ nexus_user }}
+Group={{ nexus_user }}
+Restart=on-abort
+TimeoutSec=600
+
+[Install]
+WantedBy=multi-user.target

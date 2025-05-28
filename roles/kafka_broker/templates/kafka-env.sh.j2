@@ -1,0 +1,18 @@
+#!/bin/bash
+# Environment variables for Kafka
+
+# JVM memory settings
+export KAFKA_HEAP_OPTS="{{ kafka_heap_opts }}"
+
+# JVM performance options
+export KAFKA_JVM_PERFORMANCE_OPTS="{{ kafka_jvm_performance_opts }}"
+
+# JMX monitoring settings
+export JMX_PORT=9999
+
+# Log4j settings
+export KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:{{ kafka_installation_dir }}/config/log4j.properties"
+
+# GC logging
+export GC_LOG_ENABLED="true"
+export GC_LOG_OPTS="-Xloggc:{{ kafka_log_dir }}/kafkaServer-gc.log -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps"

@@ -1,0 +1,42 @@
+---
+# Default variables for the rancher_k8s role
+
+# Rancher core settings
+rancher_version: "v2.7.9"
+rancher_domain: rancher.example.com
+rancher_admin_password: admin
+rancher_telemetry_enabled: false
+rancher_image_name: "rancher/rancher:{{ rancher_version }}"
+rancher_replica_count: 1  # Set higher for HA
+
+# SSL configuration
+rancher_use_custom_ssl: false
+rancher_ssl_cert: "/path/to/cert.pem"
+rancher_ssl_key: "/path/to/key.pem"
+rancher_ssl_ca_cert: "/path/to/ca.pem"
+rancher_ssl_self_signed: false
+
+# Port configuration
+rancher_http_port: 80
+rancher_https_port: 443
+
+# Data directory
+rancher_data_dir: /opt/rancher/data
+
+# Kubernetes cluster defaults for provisioning
+rancher_default_k8s_version: "v1.27.10"
+rancher_default_cni: "canal"
+rancher_k8s_cluster_name: "production"
+
+# Authentication
+rancher_auth_type: "localUser"  # Options: localUser, ldap, github, etc.
+
+# Feature flags
+rancher_monitoring_enabled: true
+rancher_alerting_enabled: true
+rancher_istio_enabled: false
+rancher_logging_enabled: true
+
+# Resource limits
+rancher_container_memory: "4096M"
+rancher_container_cpu: "2"

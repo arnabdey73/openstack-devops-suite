@@ -1,0 +1,59 @@
+---
+# Default variables for the keycloak_iam role
+
+# Basic settings
+keycloak_version: "22.0.1"
+keycloak_domain: "keycloak.example.com"
+keycloak_http_port: 8080
+keycloak_https_port: 8443
+keycloak_user: "keycloak"
+keycloak_group: "keycloak"
+keycloak_admin_user: "admin"
+keycloak_admin_password: "admin"
+
+# Directory settings
+keycloak_home: "/opt/keycloak"
+keycloak_config_dir: "/etc/keycloak"
+keycloak_data_dir: "/var/lib/keycloak"
+keycloak_log_dir: "/var/log/keycloak"
+
+# Database settings
+keycloak_db_type: "h2"  # Options: h2, postgresql, mysql, mariadb
+keycloak_db_host: "localhost"
+keycloak_db_port: "5432"
+keycloak_db_name: "keycloak"
+keycloak_db_username: "keycloak"
+keycloak_db_password: "keycloak"
+keycloak_db_schema: "public"
+
+# HTTP settings
+keycloak_http_enabled: true
+keycloak_https_enabled: false
+keycloak_proxy_mode: "edge"  # Options: none, edge, reencrypt, passthrough
+
+# SSL settings
+keycloak_ssl_cert_file: ""
+keycloak_ssl_key_file: ""
+keycloak_ssl_trust_store_file: ""
+keycloak_ssl_trust_store_password: ""
+keycloak_use_letsencrypt: false
+
+# Clustering and cache
+keycloak_cluster_enabled: false
+keycloak_cache_type: "local"  # Options: local, distributed, replicated
+
+# Features
+keycloak_features:
+  - "token-exchange"
+  - "admin-fine-grained-authz"
+  - "admin2"
+  - "account2"
+
+# Performance settings
+keycloak_jvm_memory: "1024m"
+keycloak_transaction_xa_enabled: true
+
+# Hostname settings
+keycloak_hostname_strict: false
+keycloak_hostname_strict_https: false
+keycloak_hostname_strict_backchannel: true

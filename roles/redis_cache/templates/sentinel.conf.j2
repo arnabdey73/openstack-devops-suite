@@ -1,0 +1,32 @@
+# Redis Sentinel configuration
+
+# Port Sentinel listens on
+port {{ redis_sentinel_port }}
+
+# By default Redis Sentinel does not run as a daemon.
+daemonize no
+
+# Specify the log file name.
+logfile {{ redis_log_dir }}/sentinel.log
+
+# loglevel
+loglevel {{ redis_loglevel }}
+
+# Directory where data is stored
+dir {{ redis_data_dir }}
+
+# Monitor settings
+{% for master in redis_sentinel_monitors %}
+sentinel monitor {{ master.name }} {{ master.host }} {{ master.port }} {{ master.quorum }}
+sentinel down-after-milliseconds {{ master.name }} {{ redis_sentinel_down_after }}
+sentinel failover-timeout {{ master.name }} {{ redis_sentinel_failover_timeout }}
+sentinel parallel-syncs {{ master.name }} {{ redis_sentinel_parallel_syncs }}
+{% if redis_require_pass %}
+sentinel auth-pass {{ master.name }} {{ redis_password }}
+{% endif %}
+{% endfor %}
+
+# Security
+{% if redis_require_pass %}
+requirepass {{ redis_password }}
+{% endif %}

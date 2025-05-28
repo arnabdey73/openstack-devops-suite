@@ -1,0 +1,43 @@
+# Jetty configuration
+application-port={{ nexus_port }}
+application-host={{ nexus_host }}
+nexus-context-path={{ nexus_context_path }}
+
+# Nexus data directory
+nexus-data={{ nexus_data_dir }}
+
+# Nexus edition
+nexus-edition=nexus-oss-edition
+
+# Nexus features
+nexus-features=\
+  nexus-core-feature,\
+  nexus-cma-feature,\
+{% if nexus_create_docker_repos %}
+  nexus-docker-registry-feature,\
+{% endif %}
+  nexus-repository-maven,\
+  nexus-repository-raw,\
+{% if nexus_create_npm_repos %}
+  nexus-repository-npm,\
+{% endif %}
+{% if nexus_create_pypi_repos %}
+  nexus-repository-pypi,\
+{% endif %}
+  nexus-repository-rubygems,\
+  nexus-repository-gitlfs,\
+  nexus-audit-plugin,\
+{% if nexus_cleanup_policies_enabled %}
+  nexus-cleanup-policy-feature,\
+{% endif %}
+  nexus-ssl-plugin
+
+# Anonymous access
+nexus.anonymous.enabled={{ nexus_anonymous_access | lower }}
+
+# Jetty specific settings
+jetty.request.header.size=32768
+jetty.response.header.size=32768
+
+# Plugin settings
+nexus.plugins.enable=true

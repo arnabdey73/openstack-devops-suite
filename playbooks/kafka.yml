@@ -1,0 +1,97 @@
+---
+# Kafka deployment playbook
+- name: Deploy Kafka Message Broker
+  hosts: kafka_servers
+  become: true
+  tags:
+    - kafka
+    - messaging
+  
+  pre_tasks:
+    - name: Ensure Java is installed
+      package:
+        name: 
+          - openjdk-11-jdk
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure Java is installed (RHEL/CentOS)
+      package:
+        name:
+          - java-11-openjdk
+        state: present
+      when: ansible_os_family == 'RedHat'
+      
+    - name: Create Kafka user
+      user:
+        name: kafka
+        shell: /bin/bash
+        home: /opt/kafka
+        system: yes
+        create_home: yes
+      
+    - name: Download and extract Kafka
+      unarchive:
+        src: https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz
+        dest: /opt
+        remote_src: yes
+        owner: kafka
+        group: kafka
+      register: kafka_download
+      
+    - name: Create Kafka symlink
+      file:
+        src: /opt/kafka_2.13-3.4.0
+        dest: /opt/kafka
+        state: link
+        owner: kafka
+        group: kafka
+      when: kafka_download.changed
+      
+    - name: Create Kafka data directory
+      file:
+        path: /var/lib/kafka
+        state: directory
+        owner: kafka
+        group: kafka
+        mode: '0755'
+
+  roles:
+    - kafka_broker
+
+  post_tasks:
+    - name: Configure firewall for Kafka
+      ufw:
+        rule: allow
+        port: 9092
+        proto: tcp
+        src: "{{ hostvars[item]['ansible_host'] }}"
+      with_items: "{{ groups['kafka_servers'] }}"
+      when: ansible_os_family == 'Debian'
+
+    - name: Configure firewall for ZooKeeper
+      ufw:
+        rule: allow
+        port: 2181
+        proto: tcp
+        src: "{{ hostvars[item]['ansible_host'] }}"
+      with_items: "{{ groups['kafka_servers'] }}"
+      when: ansible_os_family == 'Debian' and zookeeper_enabled | default(true)
+      
+    - name: Configure firewall for ZooKeeper cluster communication
+      ufw:
+        rule: allow
+        port: 2888
+        proto: tcp
+        src: "{{ hostvars[item]['ansible_host'] }}"
+      with_items: "{{ groups['kafka_servers'] }}"
+      when: ansible_os_family == 'Debian' and zookeeper_enabled | default(true)
+      
+    - name: Configure firewall for ZooKeeper leader election
+      ufw:
+        rule: allow
+        port: 3888
+        proto: tcp
+        src: "{{ hostvars[item]['ansible_host'] }}"
+      with_items: "{{ groups['kafka_servers'] }}"
+      when: ansible_os_family == 'Debian' and zookeeper_enabled | default(true)

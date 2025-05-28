@@ -1,0 +1,163 @@
+---
+# OpenStack Inventory for DevOps Suite
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa
+    ansible_python_interpreter: /usr/bin/python3
+    openstack_auth:
+      auth_url: "{{ lookup('env', 'OS_AUTH_URL') | default('https://openstack.example.com:5000/v3', true) }}"
+      username: "{{ lookup('env', 'OS_USERNAME') | default('admin', true) }}"
+      password: "{{ lookup('env', 'OS_PASSWORD') | default('securepassword', true) }}"
+      project_name: "{{ lookup('env', 'OS_PROJECT_NAME') | default('admin', true) }}"
+      user_domain_name: "{{ lookup('env', 'OS_USER_DOMAIN_NAME') | default('Default', true) }}"
+      project_domain_name: "{{ lookup('env', 'OS_PROJECT_DOMAIN_NAME') | default('Default', true) }}"
+
+  children:
+    # Infrastructure nodes
+    infrastructure:
+      children:
+        jenkins_servers:
+          hosts:
+            jenkins-master:
+              ansible_host: 192.168.1.10
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            jenkins_admin_user: admin
+            jenkins_admin_password: "{{ vault_jenkins_admin_password | default('admin') }}"
+            
+        tuleap_servers:
+          hosts:
+            tuleap:
+              ansible_host: 192.168.1.11
+              vm_flavor: m1.xlarge
+              vm_image: centos-8
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            tuleap_domain: tuleap.example.com
+            tuleap_db_password: "{{ vault_tuleap_db_password | default('tuleap') }}"
+            
+        rancher_servers:
+          hosts:
+            rancher:
+              ansible_host: 192.168.1.12
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            rancher_admin_password: "{{ vault_rancher_admin_password | default('admin') }}"
+            rancher_domain: rancher.example.com
+            
+    # Authentication and security
+    security:
+      children:
+        keycloak_servers:
+          hosts:
+            keycloak:
+              ansible_host: 192.168.1.13
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            keycloak_admin_user: admin
+            keycloak_admin_password: "{{ vault_keycloak_admin_password | default('admin') }}"
+            keycloak_domain: keycloak.example.com
+            
+    # Repositories
+    repositories:
+      children:
+        nexus_servers:
+          hosts:
+            nexus:
+              ansible_host: 192.168.1.14
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            nexus_admin_password: "{{ vault_nexus_admin_password | default('admin123') }}"
+            nexus_domain: nexus.example.com
+            
+    # Messaging
+    messaging:
+      children:
+        kafka_servers:
+          hosts:
+            kafka1:
+              ansible_host: 192.168.1.15
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [kafka, ssh]
+              vm_network: devops-network
+              vm_floating_ip: false
+            kafka2:
+              ansible_host: 192.168.1.16
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [kafka, ssh]
+              vm_network: devops-network
+              vm_floating_ip: false
+            kafka3:
+              ansible_host: 192.168.1.17
+              vm_flavor: m1.large
+              vm_image: ubuntu-20.04
+              vm_security_groups: [kafka, ssh]
+              vm_network: devops-network
+              vm_floating_ip: false
+          vars:
+            zookeeper_enabled: true
+            
+    # Caching
+    caching:
+      children:
+        redis_servers:
+          hosts:
+            redis-master:
+              ansible_host: 192.168.1.18
+              vm_flavor: m1.medium
+              vm_image: ubuntu-20.04
+              vm_security_groups: [redis, ssh]
+              vm_network: devops-network
+              vm_floating_ip: false
+            redis-replica1:
+              ansible_host: 192.168.1.19
+              vm_flavor: m1.medium
+              vm_image: ubuntu-20.04
+              vm_security_groups: [redis, ssh]
+              vm_network: devops-network
+              vm_floating_ip: false
+          vars:
+            redis_password: "{{ vault_redis_password | default('redis') }}"
+            
+    # Web servers
+    web:
+      children:
+        nginx_servers:
+          hosts:
+            nginx1:
+              ansible_host: 192.168.1.20
+              vm_flavor: m1.medium
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+            nginx2:
+              ansible_host: 192.168.1.21
+              vm_flavor: m1.medium
+              vm_image: ubuntu-20.04
+              vm_security_groups: [web, ssh]
+              vm_network: devops-network
+              vm_floating_ip: true
+          vars:
+            nginx_domain: devops.example.com

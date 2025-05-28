@@ -1,0 +1,154 @@
+---
+# Role tasks to provision an OpenStack VM
+- name: Get SSH key information
+  stat:
+    path: "{{ openstack_ssh_public_key | default('~/.ssh/id_rsa.pub') }}"
+  register: ssh_public_key_file
+  delegate_to: localhost
+  become: false
+  
+- name: Read SSH public key
+  slurp:
+    src: "{{ openstack_ssh_public_key | default('~/.ssh/id_rsa.pub') }}"
+  register: ssh_public_key_content
+  delegate_to: localhost
+  become: false
+  when: ssh_public_key_file.stat.exists
+
+- name: Create SSH keypair on OpenStack if not exists
+  os_keypair:
+    auth: "{{ openstack_auth }}"
+    state: present
+    name: "{{ openstack_keypair_name | default('ansible-keypair') }}"
+    public_key: "{{ ssh_public_key_content['content'] | b64decode if ssh_public_key_content is defined else omit }}"
+  delegate_to: localhost
+  become: false
+  register: keypair
+  
+- name: Ensure network exists
+  os_network:
+    auth: "{{ openstack_auth }}"
+    state: present
+    name: "{{ vm_network | default('devops-network') }}"
+  delegate_to: localhost
+  become: false
+  register: network
+  
+- name: Create subnet if not exists
+  os_subnet:
+    auth: "{{ openstack_auth }}"
+    state: present
+    network_name: "{{ vm_network | default('devops-network') }}"
+    name: "{{ vm_network | default('devops-network') }}-subnet"
+    cidr: "{{ vm_network_cidr | default('192.168.1.0/24') }}"
+    dns_nameservers:
+      - "{{ vm_dns_nameservers | default(['8.8.8.8', '8.8.4.4']) }}"
+  delegate_to: localhost
+  become: false
+  when: network.changed
+
+- name: Create security groups
+  os_security_group:
+    auth: "{{ openstack_auth }}"
+    state: present
+    name: "{{ item }}"
+    description: "Security group for {{ item }}"
+  loop: "{{ vm_security_groups | default(['web', 'ssh']) }}"
+  delegate_to: localhost
+  become: false
+  register: security_groups
+  
+- name: Configure SSH security group rules
+  os_security_group_rule:
+    auth: "{{ openstack_auth }}"
+    security_group: ssh
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0
+  delegate_to: localhost
+  become: false
+  when: "'ssh' in vm_security_groups | default(['web', 'ssh'])"
+  
+- name: Configure Web security group rules (HTTP)
+  os_security_group_rule:
+    auth: "{{ openstack_auth }}"
+    security_group: web
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+  delegate_to: localhost
+  become: false
+  when: "'web' in vm_security_groups | default(['web', 'ssh'])"
+
+- name: Configure Web security group rules (HTTPS)
+  os_security_group_rule:
+    auth: "{{ openstack_auth }}"
+    security_group: web
+    protocol: tcp
+    port_range_min: 443
+    port_range_max: 443
+    remote_ip_prefix: 0.0.0.0/0
+  delegate_to: localhost
+  become: false
+  when: "'web' in vm_security_groups | default(['web', 'ssh'])"
+
+- name: Create router if needed
+  os_router:
+    auth: "{{ openstack_auth }}"
+    state: present
+    name: "{{ vm_network | default('devops-network') }}-router"
+    network: "{{ openstack_external_network | default('public') }}"
+    interfaces:
+      - "{{ vm_network | default('devops-network') }}-subnet"
+  delegate_to: localhost
+  become: false
+  register: router
+  
+- name: Create VM instance
+  os_server:
+    auth: "{{ openstack_auth }}"
+    state: present
+    name: "{{ inventory_hostname }}"
+    image: "{{ vm_image | default('ubuntu-20.04') }}"
+    flavor: "{{ vm_flavor | default('m1.small') }}"
+    key_name: "{{ openstack_keypair_name | default('ansible-keypair') }}"
+    network: "{{ vm_network | default('devops-network') }}"
+    security_groups: "{{ vm_security_groups | default(['web', 'ssh']) }}"
+    auto_ip: "{{ vm_floating_ip | default(true) }}"
+    wait: yes
+    timeout: 200
+    userdata: |
+      #cloud-config
+      package_update: true
+      package_upgrade: true
+      packages:
+        - python3
+        - python3-pip
+        - python3-setuptools
+  delegate_to: localhost
+  become: false
+  register: vm
+  
+- name: Add host to dynamic inventory
+  add_host:
+    hostname: "{{ inventory_hostname }}"
+    ansible_host: "{{ vm.server.public_v4 if vm.server.public_v4 is defined and vm.server.public_v4 else vm.server.private_v4 }}"
+    ansible_user: "{{ ansible_user | default('ubuntu') }}"
+    ansible_ssh_private_key_file: "{{ openstack_ssh_private_key | default('~/.ssh/id_rsa') }}"
+    groups: "{{ group_names }}"
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  when: vm is defined and vm.server is defined
+
+- name: Wait for SSH to become available
+  wait_for:
+    host: "{{ vm.server.public_v4 if vm.server.public_v4 is defined and vm.server.public_v4 else vm.server.private_v4 }}"
+    port: 22
+    delay: 10
+    timeout: 300
+  delegate_to: localhost
+  become: false
+  when: vm is defined and vm.server is defined

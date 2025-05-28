@@ -1,0 +1,103 @@
+---
+# Role tasks for Redis Cache
+- name: Create Redis user
+  user:
+    name: "{{ redis_user }}"
+    shell: /bin/false
+    home: "{{ redis_home }}"
+    system: yes
+    create_home: yes
+
+- name: Create Redis directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ redis_user }}"
+    group: "{{ redis_user }}"
+    mode: '0755'
+  with_items:
+    - "{{ redis_home }}"
+    - "{{ redis_data_dir }}"
+    - "{{ redis_log_dir }}"
+    - "{{ redis_config_dir }}"
+
+- name: Download Redis
+  get_url:
+    url: "https://download.redis.io/releases/redis-{{ redis_version }}.tar.gz"
+    dest: "/tmp/redis-{{ redis_version }}.tar.gz"
+  register: redis_download
+
+- name: Extract Redis archive
+  unarchive:
+    src: "/tmp/redis-{{ redis_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+  when: redis_download.changed
+  register: redis_extract
+
+- name: Compile and install Redis
+  shell: |
+    cd /tmp/redis-{{ redis_version }}
+    make
+    make install PREFIX=/usr
+  args:
+    creates: /usr/bin/redis-server
+  when: redis_extract.changed
+
+- name: Copy Redis configuration file
+  template:
+    src: redis.conf.j2
+    dest: "{{ redis_config_dir }}/redis.conf"
+    owner: "{{ redis_user }}"
+    group: "{{ redis_user }}"
+    mode: '0640'
+  notify: restart redis
+
+- name: Copy Redis sentinel configuration file
+  template:
+    src: sentinel.conf.j2
+    dest: "{{ redis_config_dir }}/sentinel.conf"
+    owner: "{{ redis_user }}"
+    group: "{{ redis_user }}"
+    mode: '0640'
+  when: redis_sentinel_enabled | bool
+  notify: restart redis-sentinel
+
+- name: Setup Redis systemd service
+  template:
+    src: redis.service.j2
+    dest: /etc/systemd/system/redis.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart redis
+
+- name: Setup Redis Sentinel systemd service
+  template:
+    src: redis-sentinel.service.j2
+    dest: /etc/systemd/system/redis-sentinel.service
+    mode: '0644'
+  when: redis_sentinel_enabled | bool
+  notify:
+    - reload systemd
+    - restart redis-sentinel
+
+- name: Ensure Redis service is enabled and started
+  systemd:
+    name: redis
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: Ensure Redis Sentinel service is enabled and started
+  systemd:
+    name: redis-sentinel
+    state: started
+    enabled: yes
+  when: redis_sentinel_enabled | bool and ansible_service_mgr == 'systemd'
+
+- name: Configure Redis to start on boot
+  systemd:
+    name: redis
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'

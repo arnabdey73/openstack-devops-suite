@@ -1,0 +1,22 @@
+[Unit]
+Description=Keycloak Identity and Access Management
+After=network.target
+Documentation=https://www.keycloak.org/documentation
+
+[Service]
+Type=simple
+User={{ keycloak_user }}
+Group={{ keycloak_group }}
+ExecStart={{ keycloak_home }}/bin/kc.sh start
+WorkingDirectory={{ keycloak_home }}
+Environment="KEYCLOAK_ADMIN={{ keycloak_admin_user }}"
+Environment="KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }}"
+Environment="KC_CONFIG_FILE={{ keycloak_config_dir }}/keycloak.conf"
+Environment="JAVA_OPTS_APPEND=-Xms{{ keycloak_jvm_memory }} -Xmx{{ keycloak_jvm_memory }}"
+SuccessExitStatus=0
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

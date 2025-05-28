@@ -1,0 +1,114 @@
+---
+# Role tasks for Keycloak IAM
+- name: Create Keycloak installation directory
+  file:
+    path: "{{ keycloak_home }}"
+    state: directory
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+    mode: '0750'
+
+- name: Create Keycloak configuration directory
+  file:
+    path: "{{ keycloak_config_dir }}"
+    state: directory
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+    mode: '0750'
+
+- name: Download Keycloak distribution
+  get_url:
+    url: "https://github.com/keycloak/keycloak/releases/download/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.tar.gz"
+    dest: "/tmp/keycloak-{{ keycloak_version }}.tar.gz"
+    mode: '0600'
+  register: keycloak_download
+  
+- name: Extract Keycloak archive
+  unarchive:
+    src: "/tmp/keycloak-{{ keycloak_version }}.tar.gz"
+    dest: "/opt"
+    remote_src: yes
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+  when: keycloak_download.changed
+
+- name: Create Keycloak symlink
+  file:
+    src: "/opt/keycloak-{{ keycloak_version }}"
+    dest: "{{ keycloak_home }}"
+    state: link
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+  when: keycloak_download.changed
+
+- name: Setup Keycloak configuration
+  template:
+    src: keycloak.conf.j2
+    dest: "{{ keycloak_config_dir }}/keycloak.conf"
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+    mode: '0600'
+  notify: restart keycloak
+
+- name: Create admin user script
+  template:
+    src: create-admin-user.cli.j2
+    dest: "{{ keycloak_home }}/bin/create-admin-user.cli"
+    owner: "{{ keycloak_user }}"
+    group: "{{ keycloak_group }}"
+    mode: '0700'
+
+- name: Copy Keycloak systemd service file
+  template:
+    src: keycloak.service.j2
+    dest: /etc/systemd/system/keycloak.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart keycloak
+
+- name: Create Keycloak database
+  postgresql_db:
+    name: "{{ keycloak_db_name }}"
+    state: present
+  become: yes
+  become_user: postgres
+  when: keycloak_db_type == 'postgresql'
+  ignore_errors: yes
+
+- name: Create Keycloak database user
+  postgresql_user:
+    db: "{{ keycloak_db_name }}"
+    name: "{{ keycloak_db_username }}"
+    password: "{{ keycloak_db_password }}"
+    priv: "ALL"
+    state: present
+  become: yes
+  become_user: postgres
+  when: keycloak_db_type == 'postgresql'
+  ignore_errors: yes
+
+- name: Initialize Keycloak
+  command: "{{ keycloak_home }}/bin/kc.sh build"
+  become: yes
+  become_user: "{{ keycloak_user }}"
+  args:
+    chdir: "{{ keycloak_home }}"
+  register: keycloak_build
+  changed_when: keycloak_build.rc == 0
+
+- name: Create initial admin user
+  shell: "{{ keycloak_home }}/bin/kc.sh build --db={{ keycloak_db_type }} --db-url-host={{ keycloak_db_host }} --db-username={{ keycloak_db_username }} --db-password={{ keycloak_db_password }} --db-url-database={{ keycloak_db_name }} --features={{ keycloak_features | join(',') }}"
+  become: yes
+  become_user: "{{ keycloak_user }}"
+  args:
+    chdir: "{{ keycloak_home }}"
+  register: keycloak_init
+  changed_when: keycloak_init.rc == 0
+
+- name: Ensure Keycloak service is enabled and started
+  systemd:
+    name: keycloak
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'

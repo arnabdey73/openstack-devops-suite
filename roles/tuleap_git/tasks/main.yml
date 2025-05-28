@@ -1,0 +1,120 @@
+---
+# Role tasks for Tuleap Git and Project Management
+- name: Install prerequisites
+  yum:
+    name:
+      - epel-release
+      - nginx
+      - MySQL-python
+      - python3-pymysql
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Configure firewalld for Tuleap services
+  firewalld:
+    service: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - http
+    - https
+  when: ansible_os_family == 'RedHat'
+
+- name: Configure SELinux for Tuleap
+  seboolean:
+    name: "{{ item }}"
+    state: yes
+    persistent: yes
+  with_items:
+    - httpd_can_network_connect
+    - httpd_can_network_connect_db
+  when: ansible_os_family == 'RedHat' and ansible_selinux.status == "enabled"
+
+- name: Install MySQL server
+  yum:
+    name: 
+      - mysql-server
+      - mysql
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Start and enable MySQL
+  systemd:
+    name: mysqld
+    state: started
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Set MySQL root password
+  mysql_user:
+    name: root
+    password: "{{ tuleap_mysql_root_password | default('root') }}"
+    login_user: root
+    login_password: ""
+    state: present
+  ignore_errors: yes
+  
+- name: Create Tuleap database
+  mysql_db:
+    name: tuleap
+    state: present
+    login_user: root
+    login_password: "{{ tuleap_mysql_root_password | default('root') }}"
+    
+- name: Create Tuleap database user
+  mysql_user:
+    name: tuleap
+    password: "{{ tuleap_db_password }}"
+    priv: 'tuleap.*:ALL'
+    state: present
+    login_user: root
+    login_password: "{{ tuleap_mysql_root_password | default('root') }}"
+
+- name: Install Tuleap
+  yum:
+    name:
+      - tuleap-all
+    state: present
+  when: ansible_os_family == 'RedHat'
+  notify: restart tuleap
+
+- name: Copy Tuleap configuration file
+  template:
+    src: local.inc.j2
+    dest: /etc/tuleap/conf/local.inc
+    owner: codendiadm
+    group: codendiadm
+    mode: 0640
+  notify: restart tuleap
+
+- name: Setup initial Tuleap site
+  command: /usr/share/tuleap/tools/setup.sh --configure
+  args:
+    creates: /etc/tuleap/site-deployed
+  register: tuleap_setup
+
+- name: Set correct permissions on Tuleap directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: codendiadm
+    group: codendiadm
+    mode: 0755
+    recurse: yes
+  with_items:
+    - /var/lib/tuleap
+    - /var/lib/tuleap/gitolite/repositories
+    - /var/lib/tuleap/tracker
+
+- name: Setup Nginx to proxy to Tuleap
+  template:
+    src: nginx-tuleap.conf.j2
+    dest: /etc/nginx/conf.d/tuleap.conf
+  notify: restart nginx
+
+- name: Start and enable Nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes

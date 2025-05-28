@@ -1,0 +1,19 @@
+[Unit]
+Description=Apache Kafka Server
+Documentation=http://kafka.apache.org/documentation.html
+Requires=network.target
+After=network.target{% if zookeeper_enabled | bool %} zookeeper.service{% endif %}
+
+[Service]
+Type=simple
+User={{ kafka_user }}
+Group={{ kafka_user }}
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart={{ kafka_installation_dir }}/bin/kafka-server-start.sh {{ kafka_installation_dir }}/config/server.properties
+ExecStop={{ kafka_installation_dir }}/bin/kafka-server-stop.sh
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

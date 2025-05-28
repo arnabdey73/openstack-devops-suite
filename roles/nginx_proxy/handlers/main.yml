@@ -1,0 +1,14 @@
+---
+# Handlers for nginx_proxy role
+
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart nginx
+  systemd:
+    name: nginx
+    state: restarted
+  when: ansible_service_mgr == 'systemd'

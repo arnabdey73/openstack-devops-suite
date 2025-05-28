@@ -1,0 +1,41 @@
+version: '3'
+services:
+  rancher:
+    container_name: rancher
+    image: {{ rancher_image_name }}
+    restart: unless-stopped
+    volumes:
+      - {{ rancher_data_dir }}:/var/lib/rancher
+      {% if rancher_use_custom_ssl | default(false) %}
+      - /etc/rancher/ssl/cert.pem:/etc/rancher/ssl/cert.pem
+      - /etc/rancher/ssl/key.pem:/etc/rancher/ssl/key.pem
+      {% if rancher_ssl_ca_cert is defined %}
+      - {{ rancher_ssl_ca_cert }}:/etc/rancher/ssl/cacerts.pem
+      {% endif %}
+      {% endif %}
+    ports:
+      - {{ rancher_http_port }}:80
+      - {{ rancher_https_port }}:443
+    environment:
+      {% if rancher_use_custom_ssl | default(false) %}
+      - SSL_CERT_DIR=/etc/rancher/ssl
+      {% endif %}
+      - AUDIT_LEVEL=1
+      - CATTLE_BOOTSTRAP_PASSWORD={{ rancher_admin_password }}
+      - CATTLE_SYSTEM_DEFAULT_REGISTRY={{ rancher_system_registry | default('') }}
+      - CATTLE_SYSTEM_CATALOG=bundled
+      - CATTLE_TELEMETRY_OPT={{ 'in' if rancher_telemetry_enabled | default(false) else 'out' }}
+      {% if rancher_domain is defined %}
+      - CATTLE_SERVER_URL=https://{{ rancher_domain }}
+      {% endif %}
+      {% if rancher_https_proxy is defined %}
+      - HTTP_PROXY={{ rancher_https_proxy }}
+      - HTTPS_PROXY={{ rancher_https_proxy }}
+      - NO_PROXY={{ rancher_no_proxy | default('localhost,127.0.0.1,.svc,.cluster.local') }}
+      {% endif %}
+    deploy:
+      resources:
+        limits:
+          memory: {{ rancher_container_memory }}
+          cpus: '{{ rancher_container_cpu }}'
+    privileged: true

@@ -1,0 +1,161 @@
+---
+# Role tasks for Nginx Proxy
+- name: Install Nginx and dependencies
+  package:
+    name:
+      - nginx
+      - python3-passlib
+      - openssl
+    state: present
+  tags:
+    - nginx
+    - packages
+
+- name: Create Nginx directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  with_items:
+    - "/etc/nginx/conf.d"
+    - "/etc/nginx/ssl"
+    - "/var/www/html"
+    - "/var/cache/nginx"
+    - "/var/log/nginx"
+  tags:
+    - nginx
+    - configuration
+
+- name: Configure main Nginx configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  notify: reload nginx
+  tags:
+    - nginx
+    - configuration
+
+- name: Remove default Nginx site
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  notify: reload nginx
+  ignore_errors: yes
+  tags:
+    - nginx
+    - configuration
+
+- name: Setup main Nginx proxy site
+  template:
+    src: site.conf.j2
+    dest: /etc/nginx/conf.d/main.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  notify: reload nginx
+  tags:
+    - nginx
+    - configuration
+
+# Setup sites for each of the DevOps tools
+- name: Setup Jenkins proxy configuration
+  template:
+    src: jenkins.conf.j2
+    dest: /etc/nginx/conf.d/jenkins.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  when: "'jenkins_servers' in groups"
+  notify: reload nginx
+  tags:
+    - nginx
+    - jenkins
+
+- name: Setup Tuleap proxy configuration
+  template:
+    src: tuleap.conf.j2
+    dest: /etc/nginx/conf.d/tuleap.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  when: "'tuleap_servers' in groups"
+  notify: reload nginx
+  tags:
+    - nginx
+    - tuleap
+
+- name: Setup Rancher proxy configuration
+  template:
+    src: rancher.conf.j2
+    dest: /etc/nginx/conf.d/rancher.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  when: "'rancher_servers' in groups"
+  notify: reload nginx
+  tags:
+    - nginx
+    - rancher
+
+- name: Setup Keycloak proxy configuration
+  template:
+    src: keycloak.conf.j2
+    dest: /etc/nginx/conf.d/keycloak.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  when: "'keycloak_servers' in groups"
+  notify: reload nginx
+  tags:
+    - nginx
+    - keycloak
+
+- name: Setup Nexus proxy configuration
+  template:
+    src: nexus.conf.j2
+    dest: /etc/nginx/conf.d/nexus.conf
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  when: "'nexus_servers' in groups"
+  notify: reload nginx
+  tags:
+    - nginx
+    - nexus
+
+# SSL certificate setup
+- name: Check for SSL certificate
+  stat:
+    path: "/etc/nginx/ssl/{{ nginx_domain }}.crt"
+  register: ssl_cert
+  tags:
+    - nginx
+    - ssl
+
+- name: Set up self-signed SSL certificates
+  shell: |
+    openssl req -x509 -nodes -days 3650 \
+    -newkey rsa:4096 \
+    -keyout /etc/nginx/ssl/{{ nginx_domain }}.key \
+    -out /etc/nginx/ssl/{{ nginx_domain }}.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN={{ nginx_domain }}"
+  args:
+    creates: /etc/nginx/ssl/{{ nginx_domain }}.crt
+  when: nginx_ssl_enabled | bool and not ssl_cert.stat.exists and nginx_ssl_self_signed | bool
+  notify: reload nginx
+  tags:
+    - nginx
+    - ssl
+
+- name: Enable and start Nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: true
+  tags:
+    - nginx

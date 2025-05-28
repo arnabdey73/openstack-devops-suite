@@ -1,0 +1,79 @@
+---
+# Keycloak deployment playbook
+- name: Deploy Keycloak IAM
+  hosts: keycloak_servers
+  become: true
+  tags:
+    - keycloak
+    - iam
+    - security
+  
+  pre_tasks:
+    - name: Ensure Java is installed
+      package:
+        name: 
+          - openjdk-17-jdk
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure Java is installed (RHEL/CentOS)
+      package:
+        name:
+          - java-17-openjdk
+        state: present
+      when: ansible_os_family == 'RedHat'
+      
+    - name: Create Keycloak user
+      user:
+        name: keycloak
+        shell: /bin/bash
+        home: /opt/keycloak
+        system: yes
+        create_home: yes
+      
+    - name: Download and extract Keycloak
+      unarchive:
+        src: https://github.com/keycloak/keycloak/releases/download/22.0.1/keycloak-22.0.1.zip
+        dest: /opt
+        remote_src: yes
+        owner: keycloak
+        group: keycloak
+      register: keycloak_download
+      
+    - name: Create Keycloak symlink
+      file:
+        src: /opt/keycloak-22.0.1
+        dest: /opt/keycloak
+        state: link
+        owner: keycloak
+        group: keycloak
+      when: keycloak_download.changed
+
+  roles:
+    - keycloak_iam
+
+  post_tasks:
+    - name: Configure firewall for Keycloak
+      ufw:
+        rule: allow
+        port: 8080
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+
+    - name: Configure firewall for Keycloak HTTPS
+      ufw:
+        rule: allow
+        port: 8443
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+
+    - name: Wait for Keycloak to become available
+      uri:
+        url: http://localhost:8080/
+        status_code: 200
+        timeout: 5
+      register: keycloak_startup
+      retries: 60
+      delay: 5
+      until: keycloak_startup is success
+      changed_when: false

@@ -1,0 +1,10 @@
+embed-server --server-config=standalone.xml --std-out=echo
+batch
+
+# Create admin user if not exists
+if (outcome != success) of /core-service=management/access=authorization/role-mapping=Administrator/include=user-{{ keycloak_admin_user }}:read-resource
+  /core-service=management/access=authorization/role-mapping=Administrator/include=user-{{ keycloak_admin_user }}:add(name={{ keycloak_admin_user }}, type=USER, realm=ApplicationRealm)
+end-if
+
+run-batch
+quit

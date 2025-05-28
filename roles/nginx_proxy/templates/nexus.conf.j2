@@ -1,0 +1,69 @@
+server {
+    listen 80;
+    server_name {{ nexus_domain }};
+    
+    # Redirect to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ nexus_domain }};
+    
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/{{ nexus_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ nexus_domain }}/privkey.pem;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:50m;
+    ssl_session_tickets off;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
+    ssl_prefer_server_ciphers off;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Referrer-Policy strict-origin-when-cross-origin;
+    
+    # Large file upload support
+    client_max_body_size 1G;
+    
+    access_log /var/log/nginx/nexus_access.log;
+    error_log /var/log/nginx/nexus_error.log;
+
+    # Nexus Docker registry
+    location /v2/ {
+        proxy_pass http://{{ hostvars['nexus']['ansible_host'] }}:8082;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 900;
+    }
+    
+    # Nexus main application
+    location / {
+        proxy_pass http://{{ hostvars['nexus']['ansible_host'] }}:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+            proxy_pass http://{{ hostvars['nexus']['ansible_host'] }}:8081;
+            proxy_cache nexus_cache;
+            proxy_cache_valid 200 302 60m;
+            proxy_cache_valid 404 1m;
+            expires 1h;
+            add_header Cache-Control "public";
+        }
+        
+        # Timeout settings
+        proxy_read_timeout 600s;
+    }
+}

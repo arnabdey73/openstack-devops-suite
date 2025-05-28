@@ -1,0 +1,18 @@
+---
+# Handlers for rancher_k8s role
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart rancher
+  systemd:
+    name: rancher
+    state: restarted
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart docker
+  service:
+    name: docker
+    state: restarted

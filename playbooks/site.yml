@@ -1,0 +1,86 @@
+---
+# Main site playbook for deploying the entire OpenStack DevOps Suite
+- name: Ensure OpenStack VMs are provisioned
+  hosts: all
+  gather_facts: false
+  become: false
+  tags: 
+    - provision
+    - infrastructure
+  roles:
+    - openstack_vm
+
+- name: Configure baseline settings for all hosts
+  hosts: all
+  gather_facts: true
+  become: true
+  tags: 
+    - baseline
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Install common packages
+      package:
+        name:
+          - htop
+          - iotop
+          - ntp
+          - vim
+          - curl
+          - wget
+          - rsync
+          - git
+          - unzip
+          - ca-certificates
+        state: present
+
+    - name: Set timezone
+      timezone:
+        name: UTC
+
+    - name: Configure firewall defaults
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+      when: ansible_os_family == 'Debian'
+      
+    - name: Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
+      when: ansible_os_family == 'Debian'
+
+- name: Deploy Jenkins CI Server
+  import_playbook: jenkins.yml
+
+- name: Deploy Tuleap Git and Project Management
+  import_playbook: tuleap.yml
+
+- name: Deploy Rancher Kubernetes Management
+  import_playbook: rancher.yml
+
+- name: Deploy Keycloak IAM
+  import_playbook: keycloak.yml
+
+- name: Deploy Nexus Repository
+  import_playbook: nexus.yml
+
+- name: Deploy Kafka Message Broker
+  import_playbook: kafka.yml
+
+- name: Deploy Redis Cache
+  import_playbook: redis.yml
+
+- name: Configure Nginx Proxy
+  hosts: nginx_servers
+  become: true
+  tags:
+    - nginx
+    - proxy
+  roles:
+    - nginx_proxy

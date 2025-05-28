@@ -1,0 +1,35 @@
+---
+# Default variables for the openstack_vm role
+
+# OpenStack authentication
+openstack_auth:
+  auth_url: "{{ lookup('env', 'OS_AUTH_URL') | default('https://openstack.example.com:5000/v3', true) }}"
+  username: "{{ lookup('env', 'OS_USERNAME') | default('admin', true) }}"
+  password: "{{ lookup('env', 'OS_PASSWORD') | default('securepassword', true) }}"
+  project_name: "{{ lookup('env', 'OS_PROJECT_NAME') | default('admin', true) }}"
+  user_domain_name: "{{ lookup('env', 'OS_USER_DOMAIN_NAME') | default('Default', true) }}"
+  project_domain_name: "{{ lookup('env', 'OS_PROJECT_DOMAIN_NAME') | default('Default', true) }}"
+
+# SSH keys
+openstack_ssh_public_key: "~/.ssh/id_rsa.pub"
+openstack_ssh_private_key: "~/.ssh/id_rsa"
+openstack_keypair_name: "ansible-keypair"
+
+# External network
+openstack_external_network: "public"
+
+# VM defaults (can be overridden per host in inventory)
+vm_network: "devops-network"
+vm_network_cidr: "192.168.1.0/24"
+vm_dns_nameservers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+vm_image: "ubuntu-20.04"
+vm_flavor: "m1.small"
+vm_security_groups:
+  - "web"
+  - "ssh"
+vm_floating_ip: true
+
+# User configuration
+default_user: "ubuntu"

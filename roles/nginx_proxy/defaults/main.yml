@@ -1,0 +1,69 @@
+---
+# Default variables for the nginx_proxy role
+
+# Basic settings
+nginx_user: nginx
+nginx_group: nginx
+nginx_domain: devops.example.com
+
+# SSL settings
+nginx_ssl_enabled: true
+nginx_ssl_self_signed: true
+nginx_ssl_cert: "/etc/nginx/ssl/{{ nginx_domain }}.crt"
+nginx_ssl_key: "/etc/nginx/ssl/{{ nginx_domain }}.key"
+nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
+nginx_ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
+nginx_ssl_prefer_server_ciphers: "on"
+nginx_ssl_dhparam_enabled: false
+nginx_ssl_dhparam_path: "/etc/nginx/ssl/dhparam.pem"
+nginx_ssl_stapling_enabled: false
+nginx_ssl_stapling_verify: false
+nginx_ssl_resolver: "1.1.1.1 8.8.8.8"
+
+# HTTP/2 settings
+nginx_http2_enabled: true
+
+# Performance settings
+nginx_worker_processes: "auto"
+nginx_worker_connections: 1024
+nginx_worker_rlimit_nofile: 4096
+nginx_keepalive_timeout: 65
+nginx_client_max_body_size: "100M"
+
+# Cache settings
+nginx_proxy_cache_enabled: true
+nginx_proxy_cache_path: "/var/cache/nginx"
+nginx_proxy_cache_size: "500m"
+nginx_proxy_cache_inactive: "60m"
+nginx_proxy_cache_valid_ok: "1h"
+nginx_proxy_cache_valid_notfound: "1m"
+
+# Gzip settings
+nginx_gzip_enabled: true
+nginx_gzip_comp_level: 6
+nginx_gzip_types:
+  - "text/plain"
+  - "text/css"
+  - "text/javascript"
+  - "application/javascript"
+  - "application/json"
+  - "application/xml"
+  - "image/svg+xml"
+
+# Security settings
+nginx_hsts_enabled: true
+nginx_hsts_max_age: 31536000
+nginx_xss_protection_enabled: true
+nginx_clickjacking_protection_enabled: true
+
+# Logging settings
+nginx_access_log: "/var/log/nginx/access.log"
+nginx_error_log: "/var/log/nginx/error.log"
+nginx_log_format: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"'
+
+# Tool settings - modify these based on your inventory
+jenkins_url: "http://{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}:8080"
+tuleap_url: "http://{{ hostvars[groups['tuleap_servers'][0]]['ansible_host'] }}:80"
+rancher_url: "http://{{ hostvars[groups['rancher_servers'][0]]['ansible_host'] }}:80"
+keycloak_url: "http://{{ hostvars[groups['keycloak_servers'][0]]['ansible_host'] }}:8080"
+nexus_url: "http://{{ hostvars[groups['nexus_servers'][0]]['ansible_host'] }}:8081"

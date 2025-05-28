@@ -1,0 +1,72 @@
+---
+# Tuleap deployment playbook
+- name: Deploy Tuleap Git and Project Management
+  hosts: tuleap_servers
+  become: true
+  tags:
+    - tuleap
+    - scm
+    - git
+  
+  pre_tasks:
+    - name: Check OS support for Tuleap
+      fail:
+        msg: "Tuleap is only supported on CentOS/RHEL"
+      when: ansible_os_family != 'RedHat'
+
+    - name: Add Tuleap repository
+      yum_repository:
+        name: tuleap
+        description: Tuleap
+        baseurl: https://ci.tuleap.net/yum/tuleap/rhel/7/stable/$basearch
+        gpgcheck: false
+        enabled: true
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install EPEL repository
+      yum:
+        name: epel-release
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install prerequisites
+      yum:
+        name:
+          - tuleap-plugin-git
+          - tuleap-plugin-tracker
+          - tuleap-plugin-agiledashboard
+          - tuleap-plugin-graphontrackers
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+  roles:
+    - tuleap_git
+
+  post_tasks:
+    - name: Configure firewall for Tuleap
+      firewalld:
+        port: 80/tcp
+        permanent: true
+        immediate: true
+        state: enabled
+      when: ansible_os_family == 'RedHat'
+
+    - name: Configure firewall for Tuleap HTTPS
+      firewalld:
+        port: 443/tcp
+        permanent: true
+        immediate: true
+        state: enabled
+      when: ansible_os_family == 'RedHat'
+
+    - name: Wait for Tuleap to become available
+      uri:
+        url: https://{{ tuleap_domain | default('localhost') }}/
+        validate_certs: no
+        status_code: 200
+        timeout: 5
+      register: tuleap_startup
+      retries: 60
+      delay: 5
+      until: tuleap_startup is success
+      changed_when: false

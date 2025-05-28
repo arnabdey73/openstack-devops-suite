@@ -1,0 +1,118 @@
+---
+# Role tasks for Nexus Repository Manager
+- name: Ensure Java is installed
+  package:
+    name: 
+      - "{{ nexus_java_package }}"
+    state: present
+
+- name: Create Nexus user
+  user:
+    name: "{{ nexus_user }}"
+    shell: /bin/bash
+    home: "{{ nexus_home }}"
+    system: yes
+    create_home: yes
+
+- name: Create Nexus directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+    mode: '0755'
+  with_items:
+    - "{{ nexus_home }}"
+    - "{{ nexus_data_dir }}"
+    - "{{ nexus_log_dir }}"
+
+- name: Download Nexus
+  get_url:
+    url: "{{ nexus_download_url }}"
+    dest: "/tmp/nexus-{{ nexus_version }}.tar.gz"
+    timeout: 300
+  register: nexus_download
+
+- name: Extract Nexus archive
+  unarchive:
+    src: "/tmp/nexus-{{ nexus_version }}.tar.gz"
+    dest: "/opt"
+    remote_src: yes
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+  when: nexus_download.changed
+  register: nexus_extract
+
+- name: Find Nexus directory
+  find:
+    paths: /opt
+    patterns: "nexus-*"
+    file_type: directory
+  register: nexus_dir_find
+  when: nexus_extract.changed
+
+- name: Create Nexus symlink
+  file:
+    src: "{{ nexus_dir_find.files[0].path }}"
+    dest: "{{ nexus_installation_dir }}"
+    state: link
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+  when: nexus_extract.changed and nexus_dir_find.files
+
+- name: Find Sonatype work directory
+  find:
+    paths: /opt
+    patterns: "sonatype-work"
+    file_type: directory
+  register: sonatype_work_find
+  when: nexus_extract.changed
+
+- name: Move Sonatype work directory to data location if exists
+  command: "mv {{ sonatype_work_find.files[0].path }} {{ nexus_data_dir }}"
+  when: 
+    - nexus_extract.changed 
+    - sonatype_work_find.files | length > 0
+
+- name: Create symlink for Sonatype work directory
+  file:
+    src: "{{ nexus_data_dir }}"
+    dest: "/opt/sonatype-work"
+    state: link
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+  when: nexus_extract.changed
+
+- name: Configure JVM settings
+  template:
+    src: nexus.vmoptions.j2
+    dest: "{{ nexus_installation_dir }}/bin/nexus.vmoptions"
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+    mode: '0644'
+  notify: restart nexus
+  
+- name: Configure Nexus properties
+  template:
+    src: nexus.properties.j2
+    dest: "{{ nexus_installation_dir }}/etc/nexus.properties"
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_user }}"
+    mode: '0644'
+  notify: restart nexus
+
+- name: Configure Nexus as a systemd service
+  template:
+    src: nexus.service.j2
+    dest: /etc/systemd/system/nexus.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart nexus
+
+- name: Ensure Nexus service is enabled and started
+  systemd:
+    name: nexus
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'

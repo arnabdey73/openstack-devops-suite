@@ -1,0 +1,105 @@
+# Redis configuration file
+
+################################## NETWORK #####################################
+# By default, if no "bind" configuration directive is specified, Redis listens
+# for connections from all the network interfaces available on the server.
+bind {{ redis_bind }}
+
+# Accept connections on the specified port, default is 6379
+port {{ redis_port }}
+
+# Protected mode is a layer of security protection to avoid Redis instances
+# left open on the internet being accessed and exploited.
+protected-mode {{ redis_protected_mode }}
+
+# TCP listen() backlog
+tcp-backlog {{ redis_tcp_backlog }}
+
+# Close the connection after a client is idle for N seconds
+timeout {{ redis_timeout }}
+
+# TCP keepalive.
+tcp-keepalive {{ redis_tcp_keepalive }}
+
+# By default Redis does not run as a daemon.
+daemonize no
+
+# Set server verbosity
+loglevel {{ redis_loglevel }}
+
+# Specify the log file name
+logfile {{ redis_logfile }}
+
+# Set the number of databases
+databases {{ redis_databases }}
+
+# TCP_NODELAY sends packets immediately regardless of size
+tcp-nodelay {{ redis_tcp_nodelay }}
+
+################################# SECURITY  ###################################
+# Require clients to issue AUTH <PASSWORD> before processing any other
+# commands
+{% if redis_require_pass %}
+requirepass {{ redis_password }}
+{% endif %}
+
+# Rename dangerous commands for security
+{% for cmd_original, cmd_renamed in redis_rename_commands.items() %}
+rename-command {{ cmd_original }} {{ cmd_renamed }}
+{% endfor %}
+
+################################ SNAPSHOTTING  ################################
+{% if redis_save_to_disk %}
+# Save the DB to disk
+{% for save in redis_save_periods %}
+save {{ save[0] }} {{ save[1] }}
+{% endfor %}
+{% else %}
+# Do not save to disk
+save ""
+{% endif %}
+
+# The filename where to dump the DB
+dbfilename {{ redis_dbfilename }}
+
+# The working directory.
+dir {{ redis_data_dir }}
+
+################################# REPLICATION #################################
+{% if redis_is_replica %}
+# Set this instance as a replica
+replicaof {{ redis_replica_of }} {{ redis_replica_port }}
+{% endif %}
+
+# Replica only: Master-Replica sync
+replica-serve-stale-data {{ redis_replica_serve_stale_data }}
+replica-read-only {{ redis_replica_read_only }}
+repl-diskless-sync {{ redis_repl_diskless_sync }}
+repl-diskless-sync-delay {{ redis_repl_diskless_sync_delay }}
+
+############################# APPEND ONLY MODE ###############################
+# AOF and RDB persistence can be enabled at the same time
+appendonly {{ redis_appendonly }}
+appendfilename {{ redis_appendfilename }}
+
+# fsync() calls - options: always, everysec, no
+appendfsync {{ redis_appendfsync }}
+no-appendfsync-on-rewrite {{ redis_no_appendfsync_on_rewrite }}
+auto-aof-rewrite-percentage {{ redis_auto_aof_rewrite_percentage }}
+auto-aof-rewrite-min-size {{ redis_auto_aof_rewrite_min_size }}
+
+################################## CLIENTS #####################################
+# Set the max number of clients
+maxclients {{ redis_maxclients }}
+
+############################## MEMORY MANAGEMENT ################################
+# Set a memory usage limit to the specified amount of bytes.
+maxmemory {{ redis_maxmemory }}
+
+# Memory policy when memory limit is reached
+maxmemory-policy {{ redis_maxmemory_policy }}
+
+############################# ADVANCED CONFIG #################################
+# Latency monitoring enabled by default, just set the threshold in seconds
+# to log events at latencies higher than this value.
+latency-monitor-threshold {{ redis_latency_monitor_threshold }}

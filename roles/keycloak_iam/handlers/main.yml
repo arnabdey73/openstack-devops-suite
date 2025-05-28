@@ -1,0 +1,25 @@
+---
+# Handlers for keycloak_iam role
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: restart keycloak
+  systemd:
+    name: keycloak
+    state: restarted
+    daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'
+
+- name: wait for keycloak
+  uri:
+    url: "http://localhost:{{ keycloak_http_port }}/admin/"
+    status_code: 200, 301, 302
+    timeout: 5
+  register: keycloak_service_status
+  retries: 60
+  delay: 5
+  until: keycloak_service_status is success
+  changed_when: false

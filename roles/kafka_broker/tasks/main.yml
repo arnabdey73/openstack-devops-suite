@@ -1,0 +1,123 @@
+---
+# Role tasks for Kafka Message Broker
+- name: Ensure Java is installed
+  package:
+    name: "{{ kafka_java_package }}"
+    state: present
+
+- name: Create Kafka user
+  user:
+    name: "{{ kafka_user }}"
+    shell: /bin/bash
+    home: "{{ kafka_home }}"
+    system: yes
+    create_home: yes
+
+- name: Create Kafka directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0755'
+  with_items:
+    - "{{ kafka_home }}"
+    - "{{ kafka_data_dir }}"
+    - "{{ kafka_log_dir }}"
+
+- name: Download Kafka
+  get_url:
+    url: "https://downloads.apache.org/kafka/{{ kafka_version }}/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    dest: "/tmp/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    timeout: 300
+  register: kafka_download
+
+- name: Extract Kafka archive
+  unarchive:
+    src: "/tmp/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    dest: "/opt"
+    remote_src: yes
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+  when: kafka_download.changed
+  register: kafka_extract
+
+- name: Create Kafka symlink
+  file:
+    src: "/opt/kafka_{{ kafka_scala_version }}-{{ kafka_version }}"
+    dest: "{{ kafka_installation_dir }}"
+    state: link
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+  when: kafka_extract.changed
+
+- name: Configure Kafka server
+  template:
+    src: server.properties.j2
+    dest: "{{ kafka_installation_dir }}/config/server.properties"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0644'
+  notify: restart kafka
+  
+- name: Configure ZooKeeper
+  template:
+    src: zookeeper.properties.j2
+    dest: "{{ kafka_installation_dir }}/config/zookeeper.properties"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0644'
+  when: zookeeper_enabled | bool
+  notify: restart zookeeper
+
+- name: Configure JVM settings
+  template:
+    src: kafka-env.sh.j2
+    dest: "{{ kafka_installation_dir }}/bin/kafka-env.sh"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0755'
+  notify: restart kafka
+
+- name: Configure Kafka systemd service
+  template:
+    src: kafka.service.j2
+    dest: /etc/systemd/system/kafka.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart kafka
+
+- name: Configure ZooKeeper systemd service
+  template:
+    src: zookeeper.service.j2
+    dest: /etc/systemd/system/zookeeper.service
+    mode: '0644'
+  when: zookeeper_enabled | bool
+  notify:
+    - reload systemd
+    - restart zookeeper
+
+- name: Create myid file for ZooKeeper
+  template:
+    src: myid.j2
+    dest: "{{ kafka_data_dir }}/zookeeper/myid"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0644'
+  when: zookeeper_enabled | bool
+  notify: restart zookeeper
+
+- name: Ensure ZooKeeper service is enabled and started
+  systemd:
+    name: zookeeper
+    state: started
+    enabled: yes
+  when: zookeeper_enabled | bool and ansible_service_mgr == 'systemd'
+
+- name: Ensure Kafka service is enabled and started
+  systemd:
+    name: kafka
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'

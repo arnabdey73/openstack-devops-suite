@@ -1,0 +1,97 @@
+---
+# Role tasks for Rancher Kubernetes Management
+- name: Create Rancher directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /opt/rancher
+    - /opt/rancher/data
+
+- name: Copy docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/rancher/docker-compose.yml
+    mode: '0644'
+  register: compose_file
+
+- name: Pull Rancher docker image
+  docker_image:
+    name: rancher/rancher:{{ rancher_version | default('latest') }}
+    source: pull
+  ignore_errors: yes
+  
+- name: Start Rancher container
+  docker_compose:
+    project_src: /opt/rancher
+    state: present
+  register: rancher_compose
+  
+- name: Wait for Rancher API to be available
+  uri:
+    url: "https://{{ rancher_domain | default('localhost') }}/v3"
+    validate_certs: no
+    status_code: 200
+    timeout: 5
+  register: rancher_api
+  retries: 60
+  delay: 5
+  until: rancher_api is success
+  changed_when: false
+  
+- name: Check if Rancher admin password is already set
+  shell: >
+    docker logs rancher 2>&1 | grep 'Bootstrap Password'
+  register: bootstrap_password
+  ignore_errors: yes
+  changed_when: false
+  
+- name: Get Rancher bootstrap password
+  shell: >
+    docker logs rancher 2>&1 | grep 'Bootstrap Password' | awk '{print $NF}'
+  register: bootstrap_password_output
+  changed_when: false
+  when: bootstrap_password is succeeded
+
+- name: Display Rancher bootstrap password
+  debug:
+    msg: "Rancher bootstrap password: {{ bootstrap_password_output.stdout }}"
+  when: bootstrap_password is succeeded and bootstrap_password_output.stdout != ""
+  
+- name: Create certificate directory
+  file:
+    path: /etc/rancher/ssl
+    state: directory
+    mode: '0700'
+  when: rancher_use_custom_ssl | default(false)
+
+- name: Copy SSL certificate
+  copy:
+    src: "{{ rancher_ssl_cert }}"
+    dest: /etc/rancher/ssl/cert.pem
+    mode: '0600'
+  when: rancher_use_custom_ssl | default(false) and rancher_ssl_cert is defined
+  
+- name: Copy SSL key
+  copy:
+    src: "{{ rancher_ssl_key }}"
+    dest: /etc/rancher/ssl/key.pem
+    mode: '0600'
+  when: rancher_use_custom_ssl | default(false) and rancher_ssl_key is defined
+  
+- name: Create systemd service file
+  template:
+    src: rancher.service.j2
+    dest: /etc/systemd/system/rancher.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart rancher
+
+- name: Ensure Rancher service is enabled and started
+  systemd:
+    name: rancher
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == 'systemd'
