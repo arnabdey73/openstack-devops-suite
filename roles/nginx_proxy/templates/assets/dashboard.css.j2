@@ -1,0 +1,140 @@
+/* Dashboard Styles for OpenStack DevOps Suite */
+
+/* Additional custom styles beyond the inline CSS in index.html */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+    
+    .tool-card {
+        background-color: #1e1e1e;
+    }
+    
+    .tool-content p {
+        color: #b0b0b0;
+    }
+    
+    .footer {
+        color: #909090;
+    }
+}
+
+/* Add animations */
+.tool-card {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tool cards staggered animation */
+.tools-grid .tool-card:nth-child(1) { animation-delay: 0.1s; }
+.tools-grid .tool-card:nth-child(2) { animation-delay: 0.2s; }
+.tools-grid .tool-card:nth-child(3) { animation-delay: 0.3s; }
+.tools-grid .tool-card:nth-child(4) { animation-delay: 0.4s; }
+.tools-grid .tool-card:nth-child(5) { animation-delay: 0.5s; }
+.tools-grid .tool-card:nth-child(6) { animation-delay: 0.6s; }
+.tools-grid .tool-card:nth-child(7) { animation-delay: 0.7s; }
+
+/* Status badge */
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin-top: 10px;
+}
+.status-online {
+    background-color: #4caf50;
+    color: white;
+}
+.status-maintenance {
+    background-color: #ff9800;
+    color: white;
+}
+.status-offline {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Logo styling */
+.header-logo {
+    max-height: 60px;
+    margin-right: 15px;
+    vertical-align: middle;
+}
+
+/* Service stats */
+.service-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: #777;
+}
+
+/* Status summary */
+.status-summary {
+    display: flex;
+    justify-content: space-around;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.status-summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 10px;
+}
+
+.status-count {
+    font-size: 2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+#status-online-count {
+    color: #4caf50;
+}
+
+#status-maintenance-count {
+    color: #ff9800;
+}
+
+#status-offline-count {
+    color: #f44336;
+}
+
+#status-total-count {
+    color: #3f51b5;
+}
+
+.status-label {
+    font-size: 0.9em;
+    color: #555;
+}
+
+@media (max-width: 600px) {
+    .status-summary {
+        flex-wrap: wrap;
+    }
+    
+    .status-summary-item {
+        width: 50%;
+        margin-bottom: 15px;
+    }
+}

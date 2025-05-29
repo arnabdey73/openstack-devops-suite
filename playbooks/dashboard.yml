@@ -1,0 +1,13 @@
+---
+# Playbook for setting up the DevOps Suite Dashboard
+- name: Setup DevOps Suite Dashboard
+  hosts: nginx_proxies
+  become: true
+  tags:
+    - dashboard
+
+  roles:
+    - role: nginx_proxy
+      tags:
+        - nginx
+        - dashboard

@@ -82,5 +82,6 @@
   tags:
     - nginx
     - proxy
+    - dashboard
   roles:
     - nginx_proxy

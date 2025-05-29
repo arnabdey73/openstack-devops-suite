@@ -1,0 +1,9 @@
+{
+  "jenkins": "offline",
+  "tuleap": "offline",
+  "rancher": "offline",
+  "keycloak": "offline",
+  "nexus": "offline",
+  "kafka": "offline",
+  "redis": "offline"
+}

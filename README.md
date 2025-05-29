@@ -13,6 +13,7 @@ A modular Ansible-based library to deploy a complete DevOps and developer platfo
 - 💬 Messaging system with Kafka
 - 🧠 Cache store with Redis
 - 🌐 NGINX as a reverse proxy or static content host
+- 📊 Centralized DevOps Dashboard portal
 
 ## 📦 Roles
 
@@ -42,3 +43,35 @@ A modular Ansible-based library to deploy a complete DevOps and developer platfo
 ```bash
 git clone https://github.com/YOUR_USERNAME/openstack-devops-suite.git
 cd openstack-devops-suite
+```
+
+## 🖥️ Dashboard Portal
+
+The DevOps Suite includes a centralized dashboard portal that provides:
+
+- 🌟 Single entry point to access all DevOps services
+- 📊 Real-time status monitoring of all services
+- 🌓 Light/dark mode support based on system preferences
+- 📱 Responsive design for desktop and mobile devices
+
+### Accessing the Dashboard
+
+After deployment, the dashboard is available at:
+
+```plaintext
+https://<your-nginx-domain>/
+```
+
+### Customizing the Dashboard
+
+You can customize the dashboard by modifying variables in your inventory:
+
+```yaml
+# In your inventory file or group_vars
+nginx_proxy:
+  dashboard_title: "Company DevOps Portal"
+  dashboard_description: "Your custom description"
+  dashboard_logo_enabled: true
+```
+
+For more information, see the [Dashboard Documentation](./docs/dashboard.md).

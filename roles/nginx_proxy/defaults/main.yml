@@ -61,9 +61,23 @@ nginx_access_log: "/var/log/nginx/access.log"
 nginx_error_log: "/var/log/nginx/error.log"
 nginx_log_format: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"'
 
+# Dashboard settings
+dashboard_title: "OpenStack DevOps Suite"
+dashboard_description: "A comprehensive suite of DevOps tools for your cloud infrastructure"
+dashboard_logo_enabled: true
+dashboard_logo_path: "/var/www/html/assets/logo.svg"
+
 # Tool settings - modify these based on your inventory
 jenkins_url: "http://{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}:8080"
 tuleap_url: "http://{{ hostvars[groups['tuleap_servers'][0]]['ansible_host'] }}:80"
 rancher_url: "http://{{ hostvars[groups['rancher_servers'][0]]['ansible_host'] }}:80"
 keycloak_url: "http://{{ hostvars[groups['keycloak_servers'][0]]['ansible_host'] }}:8080"
 nexus_url: "http://{{ hostvars[groups['nexus_servers'][0]]['ansible_host'] }}:8081"
+
+# Service status checking
+service_urls:
+  jenkins: "{{ jenkins_url }}"
+  tuleap: "{{ tuleap_url }}"
+  rancher: "{{ rancher_url }}"
+  keycloak: "{{ keycloak_url }}"
+  nexus: "{{ nexus_url }}"

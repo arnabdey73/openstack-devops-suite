@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ dashboard_title | default('DevOps Suite Dashboard') }}</title>
+    <link rel="stylesheet" href="/assets/dashboard.css">
+    <style>
+        body {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7f9;
+            color: #333;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #1a237e;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .header h1 {
+            margin: 0;
+            padding: 0 20px;
+            font-size: 2.5rem;
+        }
+        .header p {
+            margin: 5px 0 0;
+            padding: 0 20px;
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-gap: 25px;
+        }
+        .tool-card {
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        .tool-header {
+            padding: 20px;
+            color: white;
+        }
+        .jenkins { background-color: #d33833; }
+        .tuleap { background-color: #0e73b9; }
+        .rancher { background-color: #0075a8; }
+        .keycloak { background-color: #4a4a4a; }
+        .nexus { background-color: #1a7b8f; }
+        .kafka { background-color: #000000; }
+        .redis { background-color: #a41e11; }
+        .tool-content {
+            padding: 20px;
+        }
+        .tool-content h3 {
+            margin-top: 0;
+        }
+        .tool-content p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3f51b5;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #303f9f;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 768px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            {% if dashboard_logo_enabled %}
+            <img src="/assets/logo.svg" alt="DevOps Suite Logo" class="header-logo">
+            {% endif %}
+            <h1>{{ dashboard_title | default('OpenStack DevOps Suite') }}</h1>
+            <p>{{ dashboard_description }}</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="status-summary">
+            <div class="status-summary-item">
+                <span class="status-count" id="status-online-count">0</span>
+                <span class="status-label">Services Online</span>
+            </div>
+            <div class="status-summary-item">
+                <span class="status-count" id="status-maintenance-count">0</span>
+                <span class="status-label">In Maintenance</span>
+            </div>
+            <div class="status-summary-item">
+                <span class="status-count" id="status-offline-count">0</span>
+                <span class="status-label">Services Offline</span>
+            </div>
+            <div class="status-summary-item">
+                <span class="status-count" id="status-total-count">0</span>
+                <span class="status-label">Total Services</span>
+            </div>
+        </div>
+        
+        <div class="tools-grid">
+            {% if 'jenkins_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header jenkins">
+                    <h2>Jenkins CI</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Continuous Integration</h3>
+                    <p>Automate your build, test, and deployment pipeline with Jenkins, the leading open-source automation server.</p>
+                    <a href="/jenkins/" class="btn">Access Jenkins</a>
+                    <div class="service-stats">
+                        <span class="status-badge status-online">Online</span>
+                        <span>{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'tuleap_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header tuleap">
+                    <h2>Tuleap</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Project Management</h3>
+                    <p>Manage your projects with Tuleap's integrated Git repositories, agile planning, and document management.</p>
+                    <a href="/tuleap/" class="btn">Access Tuleap</a>
+                    <div class="service-stats">
+                        <span class="status-badge status-online">Online</span>
+                        <span>{{ hostvars[groups['tuleap_servers'][0]]['ansible_host'] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'rancher_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header rancher">
+                    <h2>Rancher</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Kubernetes Management</h3>
+                    <p>Deploy and manage Kubernetes clusters with Rancher's intuitive management interface.</p>
+                    <a href="/rancher/" class="btn">Access Rancher</a>
+                    <div class="service-stats">
+                        <span class="status-badge status-online">Online</span>
+                        <span>{{ hostvars[groups['rancher_servers'][0]]['ansible_host'] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'keycloak_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header keycloak">
+                    <h2>Keycloak</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Identity & Access Management</h3>
+                    <p>Secure your applications with Keycloak's robust authentication and authorization services.</p>
+                    <a href="/keycloak/" class="btn">Access Keycloak</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'nexus_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header nexus">
+                    <h2>Nexus Repository</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Artifact Repository Manager</h3>
+                    <p>Store, organize, and distribute your software components with Nexus Repository Manager.</p>
+                    <a href="/nexus/" class="btn">Access Nexus</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'kafka_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header kafka">
+                    <h2>Kafka</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Message Broker</h3>
+                    <p>Build real-time streaming applications with Apache Kafka's distributed message queue.</p>
+                    <a href="/kafka/" class="btn">Access Kafka UI</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'redis_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header redis">
+                    <h2>Redis</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>In-memory Cache</h3>
+                    <p>Accelerate your application with Redis, the high-performance in-memory data store.</p>
+                    <a href="/redis/" class="btn">Access Redis UI</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <p>© {{ ansible_date_time.year | default('2025') }} OpenStack DevOps Suite • Deployed on {{ ansible_date_time.date | default('May 29, 2025') }} • <a href="/docs/dashboard.md" target="_blank" style="color: #3f51b5;">Documentation</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Function to update service status indicators
+        function updateServiceStatus() {
+            fetch('/assets/status.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Initialize counters
+                    let onlineCount = 0;
+                    let maintenanceCount = 0;
+                    let offlineCount = 0;
+                    
+                    for (const [service, status] of Object.entries(data)) {
+                        // Find all status badges for this service
+                        const badges = document.querySelectorAll(`.tool-header.${service} + .tool-content .status-badge`);
+                        
+                        badges.forEach(badge => {
+                            // Remove existing status classes
+                            badge.classList.remove('status-online', 'status-maintenance', 'status-offline');
+                            
+                            // Add appropriate status class
+                            badge.classList.add(`status-${status}`);
+                            
+                            // Update text
+                            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                        });
+                        
+                        // Update counters
+                        if (status === 'online') {
+                            onlineCount++;
+                        } else if (status === 'maintenance') {
+                            maintenanceCount++;
+                        } else if (status === 'offline') {
+                            offlineCount++;
+                        }
+                    }
+                    
+                    // Update summary counters
+                    document.getElementById('status-online-count').textContent = onlineCount;
+                    document.getElementById('status-maintenance-count').textContent = maintenanceCount;
+                    document.getElementById('status-offline-count').textContent = offlineCount;
+                    document.getElementById('status-total-count').textContent = Object.keys(data).length;
+                })
+                .catch(error => console.error('Error fetching service status:', error));
+        }
+
+        // Initial status update
+        updateServiceStatus();
+        
+        // Refresh status every 60 seconds
+        setInterval(updateServiceStatus, 60000);
+    </script>
+</body>
+</html>

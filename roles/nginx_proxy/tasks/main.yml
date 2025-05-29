@@ -50,6 +50,100 @@
     - nginx
     - configuration
 
+- name: Create dashboard directory
+  file:
+    path: "/var/www/html"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  tags:
+    - nginx
+    - dashboard
+
+- name: Create assets directory for static files
+  file:
+    path: "/var/www/html/assets"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  tags:
+    - nginx
+    - dashboard
+
+- name: Deploy initial service status file
+  copy:
+    src: initial-status.json
+    dest: /var/www/html/assets/status.json
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+    force: false  # Don't overwrite if already exists
+  tags:
+    - nginx
+    - dashboard
+
+- name: Deploy dashboard logo
+  copy:
+    src: devops-suite-logo.svg
+    dest: /var/www/html/assets/logo.svg
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  tags:
+    - nginx
+    - dashboard
+
+- name: Deploy dashboard CSS
+  template:
+    src: assets/dashboard.css.j2
+    dest: /var/www/html/assets/dashboard.css
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  notify: reload nginx
+  tags:
+    - nginx
+    - dashboard
+
+- name: Create docs directory for documentation
+  file:
+    path: "/var/www/html/docs"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  tags:
+    - nginx
+    - dashboard
+    - documentation
+
+- name: Copy dashboard documentation
+  copy:
+    src: "{{ playbook_dir }}/../docs/dashboard.md"
+    dest: "/var/www/html/docs/dashboard.md"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  tags:
+    - nginx
+    - dashboard
+    - documentation
+
+- name: Deploy dashboard index page
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  notify: reload nginx
+  tags:
+    - nginx
+    - dashboard
+
+# Setup main site and other configurations
 - name: Setup main Nginx proxy site
   template:
     src: site.conf.j2
@@ -159,3 +253,33 @@
     enabled: true
   tags:
     - nginx
+
+- name: Install Python requests module for service checking
+  pip:
+    name: requests
+    state: present
+  tags:
+    - nginx
+    - dashboard
+    - status
+
+- name: Copy service status checker script
+  copy:
+    src: check_services.py
+    dest: /usr/local/bin/check_services.py
+    mode: '0755'
+  tags:
+    - nginx
+    - dashboard
+    - status
+
+- name: Create cron job to check services status
+  cron:
+    name: "Check DevOps services status"
+    minute: "*/5"
+    job: "/usr/local/bin/check_services.py --services '{{ service_urls | to_json }}' --output /var/www/html/assets/status.json"
+    user: "{{ nginx_user }}"
+  tags:
+    - nginx
+    - dashboard
+    - status
