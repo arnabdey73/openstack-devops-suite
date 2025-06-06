@@ -1,6 +1,6 @@
 {
   "jenkins": "offline",
-  "tuleap": "offline",
+  "gitlab": "offline",
   "rancher": "offline",
   "keycloak": "offline",
   "nexus": "offline",

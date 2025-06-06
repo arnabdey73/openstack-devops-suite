@@ -1,0 +1,15 @@
+# Terraform configuration for OpenStack DevOps Suite Infrastructure
+
+auth_url             = "${OS_AUTH_URL}"
+username             = "${OS_USERNAME}"
+password             = "${OS_PASSWORD}"
+project_name         = "${OS_PROJECT_NAME}"
+user_domain_name     = "${OS_USER_DOMAIN_NAME}"
+project_domain_name  = "${OS_PROJECT_DOMAIN_NAME}"
+
+environment_name        = "devops"
+image_name             = "Ubuntu 22.04"
+flavor_name            = "m1.medium"
+external_network_name  = "public"
+public_key_path        = "~/.ssh/id_rsa.pub"
+region                 = "RegionOne"

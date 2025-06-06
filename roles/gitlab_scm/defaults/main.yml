@@ -1,0 +1,91 @@
+---
+# GitLab CE configuration defaults
+gitlab_external_url: "http://{{ ansible_default_ipv4.address }}:8090"
+gitlab_version: "16.7.2-ce.0"
+
+# GitLab configuration
+gitlab_config:
+  external_url: "{{ gitlab_external_url }}"
+  
+  # Basic configuration
+  nginx:
+    listen_port: 8090
+    listen_https: false
+  
+  # Git configuration
+  git_data_dirs:
+    default:
+      path: "/var/opt/gitlab/git-data"
+  
+  # Registry configuration
+  registry:
+    enable: true
+    registry_external_url: "{{ gitlab_external_url }}:5050"
+  
+  # CI/CD configuration
+  gitlab_ci:
+    builds_directory: "/var/opt/gitlab/gitlab-ci/builds"
+  
+  # Database configuration
+  postgresql:
+    enable: true
+    shared_preload_libraries: "pg_stat_statements"
+  
+  # Redis configuration
+  redis:
+    enable: true
+  
+  # Monitoring
+  prometheus_monitoring:
+    enable: true
+  
+  # Security
+  gitlab_rails:
+    initial_root_password: "{{ gitlab_root_password | default('ChangeMe123!') }}"
+    gitlab_signup_enabled: false
+    gitlab_default_can_create_group: true
+    gitlab_username_changing_enabled: false
+    
+# System user and group
+gitlab_user: git
+gitlab_group: git
+
+# Installation directories
+gitlab_home: /var/opt/gitlab
+gitlab_config_dir: /etc/gitlab
+gitlab_log_dir: /var/log/gitlab
+
+# Backup configuration
+gitlab_backup_keep_time: 604800  # 7 days
+gitlab_backup_path: "{{ gitlab_home }}/backups"
+
+# SSL configuration (if needed)
+gitlab_ssl_certificate: ""
+gitlab_ssl_certificate_key: ""
+
+# LDAP integration (optional)
+gitlab_ldap_enabled: false
+gitlab_ldap_servers: []
+
+# SMTP configuration (optional)
+gitlab_smtp_enabled: false
+gitlab_smtp_address: ""
+gitlab_smtp_port: 587
+gitlab_smtp_user_name: ""
+gitlab_smtp_password: ""
+gitlab_smtp_domain: ""
+gitlab_smtp_authentication: "login"
+gitlab_smtp_enable_starttls_auto: true
+
+# Container registry
+gitlab_registry_enable: true
+gitlab_registry_host: "{{ ansible_default_ipv4.address }}"
+gitlab_registry_port: "5050"
+
+# Pages configuration
+gitlab_pages_enabled: false
+
+# Runner configuration
+gitlab_runner_install: true
+gitlab_runner_coordinator_url: "{{ gitlab_external_url }}"
+gitlab_runner_registration_token: ""

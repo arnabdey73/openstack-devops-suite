@@ -1,0 +1,257 @@
+# GitLab CI/CD Pipeline for DevOps Suite Infrastructure and Configuration
+stages:
+  - validate
+  - plan
+  - infrastructure
+  - configure
+  - verify
+  - cleanup
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  ANSIBLE_ROOT: ${CI_PROJECT_DIR}
+  TF_STATE_NAME: devops-suite
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+  ANSIBLE_STDOUT_CALLBACK: yaml
+
+# Terraform validation
+terraform:validate:
+  stage: validate
+  image: hashicorp/terraform:1.6
+  script:
+    - cd $TF_ROOT
+    - terraform fmt -check
+    - terraform init -backend=false
+    - terraform validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Ansible syntax validation
+ansible:validate:
+  stage: validate
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - ansible-playbook --syntax-check playbooks/site.yml
+    - ansible-playbook --syntax-check playbooks/gitlab.yml
+    - ansible-lint playbooks/ || true  # Allow warnings
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Terraform plan
+terraform:plan:
+  stage: plan
+  image: hashicorp/terraform:1.6
+  script:
+    - cd $TF_ROOT
+    - terraform init
+    - terraform plan -var-file="terraform.tfvars" -out=plan.cache
+  artifacts:
+    paths:
+      - $TF_ROOT/plan.cache
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Infrastructure provisioning
+terraform:apply:
+  stage: infrastructure
+  image: hashicorp/terraform:1.6
+  script:
+    - cd $TF_ROOT
+    - terraform init
+    - terraform apply -auto-approve plan.cache
+    - terraform output -json > ../terraform-outputs.json
+  artifacts:
+    paths:
+      - terraform-outputs.json
+      - $TF_ROOT/terraform.tfstate
+    expire_in: 1 week
+  dependencies:
+    - terraform:plan
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual
+
+# Generate dynamic inventory from Terraform outputs
+generate:inventory:
+  stage: infrastructure
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache jq
+  script:
+    - |
+      # Extract IPs from Terraform outputs and generate inventory
+      cat terraform-outputs.json | jq -r '.ansible_inventory.value' > inventory/terraform-hosts.yml
+      echo "Generated inventory:"
+      cat inventory/terraform-hosts.yml
+  artifacts:
+    paths:
+      - inventory/terraform-hosts.yml
+    expire_in: 1 day
+  dependencies:
+    - terraform:apply
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Wait for instances to be ready
+wait:for:instances:
+  stage: infrastructure
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible all -i inventory/terraform-hosts.yml -m wait_for_connection \
+        -a "connect_timeout=20 sleep=5 delay=5 timeout=300" || true
+    - |
+      ansible all -i inventory/terraform-hosts.yml -m setup \
+        -a "gather_subset=min" --one-line
+  dependencies:
+    - generate:inventory
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Configure baseline settings
+configure:baseline:
+  stage: configure
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/site.yml \
+        --tags baseline \
+        --limit infrastructure
+  dependencies:
+    - wait:for:instances
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Deploy GitLab
+deploy:gitlab:
+  stage: configure
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/gitlab.yml \
+        --extra-vars "gitlab_root_password=$GITLAB_ROOT_PASSWORD"
+  dependencies:
+    - configure:baseline
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Deploy Jenkins
+deploy:jenkins:
+  stage: configure
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/jenkins.yml
+  dependencies:
+    - configure:baseline
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Deploy other services in parallel
+deploy:services:
+  stage: configure
+  image: cytopia/ansible:latest
+  parallel:
+    matrix:
+      - SERVICE: nexus
+      - SERVICE: keycloak
+      - SERVICE: rancher
+      - SERVICE: kafka
+      - SERVICE: redis
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/${SERVICE}.yml
+  dependencies:
+    - configure:baseline
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Deploy NGINX proxy and dashboard
+deploy:proxy:
+  stage: configure
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/dashboard.yml
+  dependencies:
+    - deploy:gitlab
+    - deploy:jenkins
+    - deploy:services
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Verify deployment
+verify:services:
+  stage: verify
+  image: curlimages/curl:latest
+  script:
+    - |
+      # Extract service IPs from terraform outputs
+      GITLAB_IP=$(cat terraform-outputs.json | jq -r '.gitlab_ip.value')
+      JENKINS_IP=$(cat terraform-outputs.json | jq -r '.jenkins_ip.value')
+      NGINX_IP=$(cat terraform-outputs.json | jq -r '.nginx_ip.value')
+      
+      # Verify services are responding
+      echo "Verifying GitLab..."
+      curl -f -s "http://${GITLAB_IP}:8090" > /dev/null || exit 1
+      
+      echo "Verifying Jenkins..."
+      curl -f -s "http://${JENKINS_IP}:8080" > /dev/null || exit 1
+      
+      echo "Verifying Dashboard..."
+      curl -f -s "http://${NGINX_IP}" > /dev/null || exit 1
+      
+      echo "All services are responding!"
+  dependencies:
+    - deploy:proxy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Manual cleanup job
+terraform:destroy:
+  stage: cleanup
+  image: hashicorp/terraform:1.6
+  script:
+    - cd $TF_ROOT
+    - terraform init
+    - terraform destroy -auto-approve -var-file="terraform.tfvars"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual
+  allow_failure: true
+
+# Security scanning (optional)
+security:scan:
+  stage: verify
+  image: owasp/zap2docker-stable:latest
+  script:
+    - |
+      NGINX_IP=$(cat terraform-outputs.json | jq -r '.nginx_ip.value')
+      zap-baseline.py -t "http://${NGINX_IP}" -J zap-report.json || true
+  artifacts:
+    reports:
+      junit: zap-report.json
+    paths:
+      - zap-report.json
+    expire_in: 1 week
+  dependencies:
+    - verify:services
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  allow_failure: true

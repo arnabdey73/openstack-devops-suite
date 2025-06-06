@@ -170,19 +170,6 @@
     - nginx
     - jenkins
 
-- name: Setup Tuleap proxy configuration
-  template:
-    src: tuleap.conf.j2
-    dest: /etc/nginx/conf.d/tuleap.conf
-    owner: "{{ nginx_user }}"
-    group: "{{ nginx_group }}"
-    mode: '0644'
-  when: "'tuleap_servers' in groups"
-  notify: reload nginx
-  tags:
-    - nginx
-    - tuleap
-
 - name: Setup Rancher proxy configuration
   template:
     src: rancher.conf.j2

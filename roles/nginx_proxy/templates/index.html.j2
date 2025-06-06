@@ -58,7 +58,7 @@
             color: white;
         }
         .jenkins { background-color: #d33833; }
-        .tuleap { background-color: #0e73b9; }
+        .gitlab { background-color: #fc6d26; }
         .rancher { background-color: #0075a8; }
         .keycloak { background-color: #4a4a4a; }
         .nexus { background-color: #1a7b8f; }
@@ -150,18 +150,18 @@
             </div>
             {% endif %}
 
-            {% if 'tuleap_servers' in groups %}
+            {% if 'gitlab_servers' in groups %}
             <div class="tool-card">
-                <div class="tool-header tuleap">
-                    <h2>Tuleap</h2>
+                <div class="tool-header gitlab">
+                    <h2>GitLab</h2>
                 </div>
                 <div class="tool-content">
-                    <h3>Project Management</h3>
-                    <p>Manage your projects with Tuleap's integrated Git repositories, agile planning, and document management.</p>
-                    <a href="/tuleap/" class="btn">Access Tuleap</a>
+                    <h3>Git SCM & DevOps Platform</h3>
+                    <p>Modern Git workflows, integrated CI/CD pipelines, and container registry with GitLab Community Edition.</p>
+                    <a href="/gitlab/" class="btn">Access GitLab</a>
                     <div class="service-stats">
                         <span class="status-badge status-online">Online</span>
-                        <span>{{ hostvars[groups['tuleap_servers'][0]]['ansible_host'] }}</span>
+                        <span>{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}</span>
                     </div>
                 </div>
             </div>

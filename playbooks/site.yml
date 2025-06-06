@@ -58,8 +58,8 @@
 - name: Deploy Jenkins CI Server
   import_playbook: jenkins.yml
 
-- name: Deploy Tuleap Git and Project Management
-  import_playbook: tuleap.yml
+- name: Deploy GitLab SCM and Project Management
+  import_playbook: gitlab.yml
 
 - name: Deploy Rancher Kubernetes Management
   import_playbook: rancher.yml

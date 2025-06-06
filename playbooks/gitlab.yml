@@ -1,0 +1,94 @@
+---
+# GitLab deployment playbook
+- name: Deploy GitLab SCM and Project Management
+  hosts: gitlab_servers
+  become: true
+  tags:
+    - gitlab
+    - scm
+    - git
+    - cicd
+  
+  pre_tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Install basic prerequisites
+      package:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - software-properties-common
+        state: present
+
+    - name: Check system requirements
+      assert:
+        that:
+          - ansible_memtotal_mb >= 4096
+        fail_msg: "GitLab requires at least 4GB of RAM"
+        success_msg: "System meets minimum memory requirements"
+
+    - name: Check disk space
+      assert:
+        that:
+          - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first > 10737418240  # 10GB
+        fail_msg: "GitLab requires at least 10GB of free disk space"
+        success_msg: "System meets minimum disk space requirements"
+
+  roles:
+    - gitlab_scm
+
+  post_tasks:
+    - name: Configure firewall for GitLab
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        state: enabled
+      loop:
+        - "8090"  # GitLab web interface
+        - "22"    # SSH for Git operations
+        - "5050"  # Container registry
+      when: ansible_os_family == "Debian"
+
+    - name: Create GitLab backup cron job
+      cron:
+        name: "GitLab backup"
+        minute: "0"
+        hour: "2"
+        job: "/opt/gitlab/bin/gitlab-backup create CRON=1"
+        user: root
+      when: gitlab_backup_enabled | default(true)
+
+    - name: Create GitLab backup cleanup cron job
+      cron:
+        name: "GitLab backup cleanup"
+        minute: "30" 
+        hour: "2"
+        job: "find {{ gitlab_backup_path }} -name '*.tar' -mtime +7 -delete"
+        user: root
+      when: gitlab_backup_enabled | default(true)
+
+    - name: Display post-installation information
+      debug:
+        msg:
+          - "================================================"
+          - "GitLab CE Installation Complete!"
+          - "================================================"
+          - "Web Interface: {{ gitlab_external_url }}"
+          - "Username: root"
+          - "Password: {{ gitlab_root_password | default('ChangeMe123!') }}"
+          - "Container Registry: {{ gitlab_external_url }}:5050"
+          - "SSH Git URL: git@{{ ansible_default_ipv4.address }}:group/project.git"
+          - "HTTPS Git URL: {{ gitlab_external_url }}/group/project.git"
+          - ""
+          - "Next Steps:"
+          - "1. Change the root password"
+          - "2. Create users and projects"
+          - "3. Configure GitLab Runner for CI/CD"
+          - "4. Set up SMTP for email notifications"
+          - "================================================"

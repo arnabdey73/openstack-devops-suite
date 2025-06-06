@@ -1,0 +1,129 @@
+---
+# GitLab CE installation and configuration tasks
+
+- name: Install prerequisites
+  package:
+    name:
+      - curl
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+    state: present
+  become: true
+
+- name: Add GitLab package repository GPG key
+  apt_key:
+    url: https://packages.gitlab.com/gpg.key
+    state: present
+  become: true
+
+- name: Add GitLab package repository
+  apt_repository:
+    repo: "deb https://packages.gitlab.com/gitlab/gitlab-ce/ubuntu/ {{ ansible_distribution_release }} main"
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install GitLab CE
+  package:
+    name: "gitlab-ce={{ gitlab_version }}"
+    state: present
+  become: true
+  notify: reconfigure gitlab
+
+- name: Create GitLab configuration directory
+  file:
+    path: "{{ gitlab_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Generate GitLab configuration
+  template:
+    src: gitlab.rb.j2
+    dest: "{{ gitlab_config_dir }}/gitlab.rb"
+    owner: root
+    group: root
+    mode: '0600'
+    backup: true
+  become: true
+  notify: reconfigure gitlab
+
+- name: Start and enable GitLab services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  loop:
+    - gitlab-runsvdir
+
+- name: Wait for GitLab to be ready
+  uri:
+    url: "{{ gitlab_external_url }}"
+    method: GET
+    status_code: 200
+  register: gitlab_check
+  until: gitlab_check.status == 200
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Create GitLab backup directory
+  file:
+    path: "{{ gitlab_backup_path }}"
+    state: directory
+    owner: "{{ gitlab_user }}"
+    group: "{{ gitlab_group }}"
+    mode: '0700'
+  become: true
+
+- name: Install GitLab Runner (if enabled)
+  block:
+    - name: Add GitLab Runner repository GPG key
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+
+    - name: Add GitLab Runner repository
+      apt_repository:
+        repo: "deb https://packages.gitlab.com/runner/gitlab-runner/ubuntu/ {{ ansible_distribution_release }} main"
+        state: present
+        update_cache: true
+
+    - name: Install GitLab Runner
+      package:
+        name: gitlab-runner
+        state: present
+
+    - name: Start and enable GitLab Runner
+      systemd:
+        name: gitlab-runner
+        state: started
+        enabled: true
+  become: true
+  when: gitlab_runner_install | default(false)
+
+- name: Configure firewall for GitLab
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  become: true
+  loop:
+    - "8090"  # GitLab web interface
+    - "22"    # SSH for Git operations
+    - "5050"  # Container registry
+  when: ansible_os_family == "Debian"
+
+- name: Display GitLab access information
+  debug:
+    msg:
+      - "GitLab is available at: {{ gitlab_external_url }}"
+      - "Default root password: {{ gitlab_root_password | default('ChangeMe123!') }}"
+      - "Container registry: {{ gitlab_external_url }}:5050"
+      - "SSH clone URL: git@{{ ansible_default_ipv4.address }}:project/repository.git"

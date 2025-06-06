@@ -1,0 +1,27 @@
+---
+# GitLab service handlers
+
+- name: reconfigure gitlab
+  command: gitlab-ctl reconfigure
+  become: true
+  listen: reconfigure gitlab
+
+- name: restart gitlab
+  command: gitlab-ctl restart
+  become: true
+  listen: restart gitlab
+
+- name: stop gitlab
+  command: gitlab-ctl stop
+  become: true
+  listen: stop gitlab
+
+- name: start gitlab
+  command: gitlab-ctl start
+  become: true
+  listen: start gitlab
+
+- name: reload gitlab
+  command: gitlab-ctl hup
+  become: true
+  listen: reload gitlab

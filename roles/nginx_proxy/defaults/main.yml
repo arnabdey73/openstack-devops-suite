@@ -69,15 +69,23 @@ dashboard_logo_path: "/var/www/html/assets/logo.svg"
 
 # Tool settings - modify these based on your inventory
 jenkins_url: "http://{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}:8080"
-tuleap_url: "http://{{ hostvars[groups['tuleap_servers'][0]]['ansible_host'] }}:80"
+gitlab_url: "http://{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}:8090"
+gitlab_registry_url: "http://{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}:5050"
+gitlab_max_body_size: "1g"
+gitlab_pages_enabled: false
+gitlab_pages_domain: "pages.{{ nginx_domain }}"
+gitlab_pages_url: "http://{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}:8091"
 rancher_url: "http://{{ hostvars[groups['rancher_servers'][0]]['ansible_host'] }}:80"
 keycloak_url: "http://{{ hostvars[groups['keycloak_servers'][0]]['ansible_host'] }}:8080"
 nexus_url: "http://{{ hostvars[groups['nexus_servers'][0]]['ansible_host'] }}:8081"
 
+# Proxy settings
+nginx_proxy_timeout: 300
+
 # Service status checking
 service_urls:
   jenkins: "{{ jenkins_url }}"
-  tuleap: "{{ tuleap_url }}"
+  gitlab: "{{ gitlab_url }}"
   rancher: "{{ rancher_url }}"
   keycloak: "{{ keycloak_url }}"
   nexus: "{{ nexus_url }}"

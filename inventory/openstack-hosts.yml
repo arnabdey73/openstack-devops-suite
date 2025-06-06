@@ -19,6 +19,18 @@ all:
       children:
         jenkins_servers:
           hosts:
+            jenkins:
+              ansible_host: "{{ lookup('env', 'JENKINS_IP') | default('10.0.0.10', true) }}"
+              service_type: jenkins
+              service_port: 8080
+              
+        gitlab_servers:
+          hosts:
+            gitlab:
+              ansible_host: "{{ lookup('env', 'GITLAB_IP') | default('10.0.0.11', true) }}"
+              service_type: gitlab
+              service_port: 8090
+              gitlab_root_password: "{{ lookup('env', 'GITLAB_ROOT_PASSWORD') | default('ChangeMe123!', true) }}"
             jenkins-master:
               ansible_host: 192.168.1.10
               vm_flavor: m1.large
@@ -30,19 +42,7 @@ all:
             jenkins_admin_user: admin
             jenkins_admin_password: "{{ vault_jenkins_admin_password | default('admin') }}"
             
-        tuleap_servers:
-          hosts:
-            tuleap:
-              ansible_host: 192.168.1.11
-              vm_flavor: m1.xlarge
-              vm_image: centos-8
-              vm_security_groups: [web, ssh]
-              vm_network: devops-network
-              vm_floating_ip: true
-          vars:
-            tuleap_domain: tuleap.example.com
-            tuleap_db_password: "{{ vault_tuleap_db_password | default('tuleap') }}"
-            
+
         rancher_servers:
           hosts:
             rancher:
