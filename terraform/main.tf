@@ -138,34 +138,34 @@ resource "openstack_compute_keypair_v2" "devops_suite" {
 # Floating IPs for external access
 resource "openstack_networking_floatingip_v2" "gitlab_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:gitlab", "environment:\${var.environment_name}"]
+  tags = ["service:gitlab", "environment:${var.environment_name}"]
 }
 
 resource "openstack_networking_floatingip_v2" "nginx_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:nginx", "environment:\${var.environment_name}"]
+  tags = ["service:nginx", "environment:${var.environment_name}"]
 }
 
 resource "openstack_networking_floatingip_v2" "nexus_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:nexus", "environment:\${var.environment_name}"]
+  tags = ["service:nexus", "environment:${var.environment_name}"]
 }
 
 resource "openstack_networking_floatingip_v2" "keycloak_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:keycloak", "environment:\${var.environment_name}"]
+  tags = ["service:keycloak", "environment:${var.environment_name}"]
 }
 
 resource "openstack_networking_floatingip_v2" "rancher_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:rancher", "environment:\${var.environment_name}"]
+  tags = ["service:rancher", "environment:${var.environment_name}"]
 }
 
 # Persistent volumes for data storage
 resource "openstack_blockstorage_volume_v3" "gitlab_data" {
-  name = "\${var.environment_name}-gitlab-data"
+  name = "${var.environment_name}-gitlab-data"
   size = var.gitlab_volume_size
-  tags = {
+  metadata = {
     service     = "gitlab"
     environment = var.environment_name
     purpose     = "data-storage"
@@ -173,9 +173,9 @@ resource "openstack_blockstorage_volume_v3" "gitlab_data" {
 }
 
 resource "openstack_blockstorage_volume_v3" "nexus_data" {
-  name = "\${var.environment_name}-nexus-data"
+  name = "${var.environment_name}-nexus-data"
   size = var.nexus_volume_size
-  tags = {
+  metadata = {
     service     = "nexus"
     environment = var.environment_name
     purpose     = "data-storage"
@@ -183,9 +183,9 @@ resource "openstack_blockstorage_volume_v3" "nexus_data" {
 }
 
 resource "openstack_blockstorage_volume_v3" "keycloak_data" {
-  name = "\${var.environment_name}-keycloak-data"
+  name = "${var.environment_name}-keycloak-data"
   size = var.keycloak_volume_size
-  tags = {
+  metadata = {
     service     = "keycloak"
     environment = var.environment_name
     purpose     = "data-storage"
@@ -194,7 +194,7 @@ resource "openstack_blockstorage_volume_v3" "keycloak_data" {
 
 # GitLab server (primary CI/CD and SCM)
 resource "openstack_compute_instance_v2" "gitlab" {
-  name            = "\${var.environment_name}-gitlab"
+  name            = "${var.environment_name}-gitlab"
   image_id        = data.openstack_images_image_v2.ubuntu.id
   flavor_id       = data.openstack_compute_flavor_v2.medium.id
   key_pair        = openstack_compute_keypair_v2.devops_suite.name
@@ -204,7 +204,7 @@ resource "openstack_compute_instance_v2" "gitlab" {
     name = data.openstack_networking_network_v2.external.name
   }
 
-  user_data = templatefile("\${path.module}/templates/cloud-init.yml.tpl", {
+  user_data = templatefile("${path.module}/templates/cloud-init.yml.tpl", {
     environment_name = var.environment_name
     service_name     = "gitlab"
     vmware_enabled   = var.enable_vmware_tools
@@ -212,13 +212,13 @@ resource "openstack_compute_instance_v2" "gitlab" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "gitlab-ci-cd"
-    environment         = var.environment_name
+    vm_type              = "gitlab-ci-cd"
+    environment          = var.environment_name
   }
 
   tags = [
     "service:gitlab",
-    "environment:\${var.environment_name}",
+    "environment:${var.environment_name}",
     "role:ci-cd-scm"
   ]
 }
@@ -230,14 +230,14 @@ resource "openstack_compute_volume_attach_v2" "gitlab_data_attach" {
 }
 
 # Associate floating IP with GitLab
-resource "openstack_compute_floatingip_associate_v2" "gitlab_fip_associate" {
+resource "openstack_networking_floatingip_associate_v2" "gitlab_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.gitlab_fip.address
-  instance_id = openstack_compute_instance_v2.gitlab.id
+  port_id     = openstack_compute_instance_v2.gitlab.network[0].port
 }
 
 # Nexus repository manager
 resource "openstack_compute_instance_v2" "nexus" {
-  name            = "\${var.environment_name}-nexus"
+  name            = "${var.environment_name}-nexus"
   image_id        = data.openstack_images_image_v2.ubuntu.id
   flavor_id       = data.openstack_compute_flavor_v2.medium.id
   key_pair        = openstack_compute_keypair_v2.devops_suite.name
@@ -247,7 +247,7 @@ resource "openstack_compute_instance_v2" "nexus" {
     name = data.openstack_networking_network_v2.external.name
   }
 
-  user_data = templatefile("\${path.module}/templates/cloud-init.yml.tpl", {
+  user_data = templatefile("${path.module}/templates/cloud-init.yml.tpl", {
     environment_name = var.environment_name
     service_name     = "nexus"
     vmware_enabled   = var.enable_vmware_tools
@@ -255,13 +255,13 @@ resource "openstack_compute_instance_v2" "nexus" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "nexus-repository"
-    environment         = var.environment_name
+    vm_type              = "nexus-repository"
+    environment          = var.environment_name
   }
 
   tags = [
     "service:nexus",
-    "environment:\${var.environment_name}",
+    "environment:${var.environment_name}",
     "role:repository"
   ]
 }
@@ -273,9 +273,9 @@ resource "openstack_compute_volume_attach_v2" "nexus_data_attach" {
 }
 
 # Associate floating IP with Nexus
-resource "openstack_compute_floatingip_associate_v2" "nexus_fip_associate" {
+resource "openstack_networking_floatingip_associate_v2" "nexus_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.nexus_fip.address
-  instance_id = openstack_compute_instance_v2.nexus.id
+  port_id     = openstack_compute_instance_v2.nexus.network[0].port
 }
 
 
@@ -299,8 +299,8 @@ resource "openstack_compute_instance_v2" "keycloak" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "keycloak-iam"
-    environment         = var.environment_name
+    vm_type              = "keycloak-iam"
+    environment          = var.environment_name
   }
 
   tags = [
@@ -317,9 +317,9 @@ resource "openstack_compute_volume_attach_v2" "keycloak_data_attach" {
 }
 
 # Associate floating IP with Keycloak
-resource "openstack_compute_floatingip_associate_v2" "keycloak_fip_associate" {
+resource "openstack_networking_floatingip_associate_v2" "keycloak_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.keycloak_fip.address
-  instance_id = openstack_compute_instance_v2.keycloak.id
+  port_id     = openstack_compute_instance_v2.keycloak.network[0].port
 }
 
 # Rancher Kubernetes management
@@ -342,8 +342,8 @@ resource "openstack_compute_instance_v2" "rancher" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "rancher-k8s"
-    environment         = var.environment_name
+    vm_type              = "rancher-k8s"
+    environment          = var.environment_name
   }
 
   tags = [
@@ -354,9 +354,9 @@ resource "openstack_compute_instance_v2" "rancher" {
 }
 
 # Associate floating IP with Rancher
-resource "openstack_compute_floatingip_associate_v2" "rancher_fip_associate" {
+resource "openstack_networking_floatingip_associate_v2" "rancher_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.rancher_fip.address
-  instance_id = openstack_compute_instance_v2.rancher.id
+  port_id     = openstack_compute_instance_v2.rancher.network[0].port
 }
 
 # Kafka message broker
@@ -379,8 +379,8 @@ resource "openstack_compute_instance_v2" "kafka" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "kafka-messaging"
-    environment         = var.environment_name
+    vm_type              = "kafka-messaging"
+    environment          = var.environment_name
   }
 
   tags = [
@@ -410,8 +410,8 @@ resource "openstack_compute_instance_v2" "redis" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "redis-cache"
-    environment         = var.environment_name
+    vm_type              = "redis-cache"
+    environment          = var.environment_name
   }
 
   tags = [
@@ -441,8 +441,8 @@ resource "openstack_compute_instance_v2" "nginx" {
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type             = "nginx-proxy"
-    environment         = var.environment_name
+    vm_type              = "nginx-proxy"
+    environment          = var.environment_name
   }
 
   tags = [
@@ -453,7 +453,7 @@ resource "openstack_compute_instance_v2" "nginx" {
 }
 
 # Associate floating IP with NGINX proxy
-resource "openstack_compute_floatingip_associate_v2" "nginx_fip_associate" {
+resource "openstack_networking_floatingip_associate_v2" "nginx_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.nginx_fip.address
-  instance_id = openstack_compute_instance_v2.nginx.id
+  port_id     = openstack_compute_instance_v2.nginx.network[0].port
 }

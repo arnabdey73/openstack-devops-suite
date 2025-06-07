@@ -23,7 +23,7 @@
   ignore_errors: yes
   
 - name: Start Rancher container
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: /opt/rancher
     state: present
   register: rancher_compose

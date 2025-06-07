@@ -24,7 +24,6 @@ all:
               service_type: gitlab
               service_port: 8090
               role: ci-cd-scm
-              service_port: 8090
               gitlab_root_password: "{{ lookup('env', 'GITLAB_ROOT_PASSWORD') | default('ChangeMe123!', true) }}"
             
 
