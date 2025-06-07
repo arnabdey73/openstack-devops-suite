@@ -1,5 +1,5 @@
 ---
-# Generated Ansible inventory from Terraform
+# Generated Ansible inventory from Terraform for GitLab-Centered DevOps Suite
 all:
   vars:
     ansible_user: ubuntu
@@ -9,20 +9,14 @@ all:
   children:
     # Infrastructure nodes
     infrastructure:
-      children:
-        jenkins_servers:
-          hosts:
-            jenkins:
-              ansible_host: ${jenkins_ip}
-              service_type: jenkins
-              service_port: 8080
-              
+      children:        
         gitlab_servers:
           hosts:
             gitlab:
               ansible_host: ${gitlab_ip}
               service_type: gitlab
               service_port: 8090
+              role: ci-cd-scm
               
         nexus_servers:
           hosts:

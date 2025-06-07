@@ -97,8 +97,7 @@ source your-openstack-rc.sh
 
 3. **Access Services**
    - Dashboard: `http://<nginx-ip>`
-   - GitLab: `http://<gitlab-ip>:8090`
-   - Jenkins: `http://<jenkins-ip>:8080`
+   - GitLab: `http://<gitlab-ip>:8090` (Primary CI/CD and SCM)
 
 ## 📁 Directory Structure
 
@@ -110,8 +109,7 @@ openstack-devops-suite/
 │   ├── outputs.tf            # Output values
 │   └── templates/            # Terraform templates
 ├── roles/                    # Ansible roles
-│   ├── gitlab_scm/           # GitLab role for Git SCM
-│   ├── jenkins_ci/           # Jenkins CI/CD
+│   ├── gitlab_scm/           # GitLab role for Git SCM and CI/CD
 │   └── ...                   # Other service roles
 ├── playbooks/                # Ansible playbooks
 │   ├── site.yml              # Main deployment playbook
@@ -180,8 +178,7 @@ The included `.gitlab-ci.yml` provides:
 After deployment, services are available at:
 
 - **Dashboard**: `http://<nginx-ip>` - Central dashboard
-- **GitLab**: `http://<gitlab-ip>:8090` - Git SCM and CI/CD
-- **Jenkins**: `http://<jenkins-ip>:8080` - Build automation
+- **GitLab**: `http://<gitlab-ip>:8090` - Git SCM and CI/CD (Primary Platform)
 - **Nexus**: `http://<nexus-ip>:8081` - Artifact repository
 - **Keycloak**: `http://<keycloak-ip>:8180` - Identity management
 - **Rancher**: `http://<rancher-ip>:8443` - Kubernetes management

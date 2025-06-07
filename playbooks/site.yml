@@ -55,9 +55,6 @@
         name: OpenSSH
       when: ansible_os_family == 'Debian'
 
-- name: Deploy Jenkins CI Server
-  import_playbook: jenkins.yml
-
 - name: Deploy GitLab SCM and Project Management
   import_playbook: gitlab.yml
 

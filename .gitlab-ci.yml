@@ -1,4 +1,4 @@
-# GitLab CI/CD Pipeline for DevOps Suite Infrastructure and Configuration
+# GitLab CI/CD Pipeline for GitLab-Centered DevOps Suite on VMware OpenStack
 stages:
   - validate
   - plan
@@ -10,9 +10,10 @@ stages:
 variables:
   TF_ROOT: ${CI_PROJECT_DIR}/terraform
   ANSIBLE_ROOT: ${CI_PROJECT_DIR}
-  TF_STATE_NAME: devops-suite
+  TF_STATE_NAME: vmware-openstack-devops-suite
   ANSIBLE_HOST_KEY_CHECKING: "False"
   ANSIBLE_STDOUT_CALLBACK: yaml
+  VMWARE_OPTIMIZED: "true"
 
 # Terraform validation
 terraform:validate:
@@ -36,6 +37,19 @@ ansible:validate:
     - ansible-playbook --syntax-check playbooks/site.yml
     - ansible-playbook --syntax-check playbooks/gitlab.yml
     - ansible-lint playbooks/ || true  # Allow warnings
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# VMware OpenStack connectivity test
+vmware:connectivity:
+  stage: validate
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Testing VMware OpenStack connectivity..."
+    - curl -k -s -o /dev/null -w "%{http_code}" $OS_AUTH_URL || echo "OpenStack endpoint check"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -145,20 +159,6 @@ deploy:gitlab:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# Deploy Jenkins
-deploy:jenkins:
-  stage: configure
-  image: cytopia/ansible:latest
-  script:
-    - cd $ANSIBLE_ROOT
-    - |
-      ansible-playbook -i inventory/terraform-hosts.yml \
-        playbooks/jenkins.yml
-  dependencies:
-    - configure:baseline
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
 # Deploy other services in parallel
 deploy:services:
   stage: configure
@@ -191,7 +191,6 @@ deploy:proxy:
         playbooks/dashboard.yml
   dependencies:
     - deploy:gitlab
-    - deploy:jenkins
     - deploy:services
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -204,15 +203,11 @@ verify:services:
     - |
       # Extract service IPs from terraform outputs
       GITLAB_IP=$(cat terraform-outputs.json | jq -r '.gitlab_ip.value')
-      JENKINS_IP=$(cat terraform-outputs.json | jq -r '.jenkins_ip.value')
       NGINX_IP=$(cat terraform-outputs.json | jq -r '.nginx_ip.value')
       
       # Verify services are responding
       echo "Verifying GitLab..."
       curl -f -s "http://${GITLAB_IP}:8090" > /dev/null || exit 1
-      
-      echo "Verifying Jenkins..."
-      curl -f -s "http://${JENKINS_IP}:8080" > /dev/null || exit 1
       
       echo "Verifying Dashboard..."
       curl -f -s "http://${NGINX_IP}" > /dev/null || exit 1

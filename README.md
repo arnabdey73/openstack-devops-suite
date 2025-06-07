@@ -1,34 +1,40 @@
-# OpenStack DevOps Suite
+# GitLab-Centered DevOps Suite for VMware OpenStack
 
-A modernized Terraform and Ansible-based library to deploy a complete DevOps and developer platform on OpenStack. This suite uses Terraform for infrastructure provisioning, Ansible for configuration management, and GitLab CI/CD for orchestration—provisioning and configuring core components like Jenkins, GitLab, Rancher, Nexus, Keycloak, Kafka, Redis, and NGINX—ideal for private cloud environments.
+A modernized Terraform and Ansible-based solution to deploy a complete GitLab-centered DevOps platform on VMware OpenStack environments. This suite uses GitLab as the primary CI/CD and SCM platform, eliminating the need for Jenkins while providing comprehensive DevOps tooling optimized for VMware infrastructure.
 
 ## ✨ Features
 
-- 🏗️ Infrastructure as Code with Terraform
-- ⚙️ CI/CD with Jenkins and GitLab CI/CD
-- 🔁 Git SCM and project management with GitLab
+- 🏗️ Infrastructure as Code with Terraform (VMware OpenStack optimized)
+- 🦊 **GitLab as Primary CI/CD and SCM** (Jenkins-free architecture)
 - ☸️ Kubernetes orchestration with Rancher
 - 📦 Artifact and Docker registry with Nexus
 - 🔐 Centralized identity management with Keycloak
 - 💬 Messaging system with Kafka
 - 🧠 Cache store with Redis
-- 🌐 NGINX as a reverse proxy or static content host
-- 📊 Centralized DevOps Dashboard portal
-- 🔄 Automated deployment with GitLab CI/CD pipelines
+- 🌐 NGINX as reverse proxy and dashboard
+- 📊 Centralized DevOps Dashboard
+- 🔄 GitLab CI/CD pipeline automation
+- 🖥️ VMware Tools integration and optimization
 
 ## 🏗️ Architecture
 
 **Infrastructure Layer (Terraform):**
-- OpenStack VM provisioning
+- VMware OpenStack VM provisioning with optimizations
 - Security group and network configuration
+- VMware Tools integration
 - State management and drift detection
 
 **Configuration Layer (Ansible):**
 - Service installation and configuration
+- VMware environment optimization
 - Application deployment
 - System hardening and monitoring
 
 **Orchestration Layer (GitLab CI/CD):**
+- GitLab-native CI/CD pipelines
+- Infrastructure deployment automation
+- Service configuration management
+- No external CI/CD tools required
 - Infrastructure provisioning automation
 - Configuration management pipelines
 - Service health verification
@@ -39,7 +45,6 @@ A modernized Terraform and Ansible-based library to deploy a complete DevOps and
 | Role            | Purpose                              | Technology Stack    |
 |-----------------|--------------------------------------|-------------------|
 | `openstack_vm`  | Creates and manages VMs in OpenStack | Terraform + Ansible|
-| `jenkins_ci`    | Installs and configures Jenkins      | Jenkins + Docker  |
 | `gitlab_scm`    | Deploys GitLab for Git/Project Mgmt  | GitLab CE + Registry|
 | `rancher_k8s`   | Installs Rancher & bootstraps K8s    | Rancher + Docker  |
 | `nexus_repo`    | Sets up Nexus OSS repository         | Nexus OSS         |
@@ -194,7 +199,6 @@ After deployment, access your services at:
 |---------|-----|-------------|
 | **Dashboard** | `http://<nginx-ip>` | Central DevOps dashboard |
 | **GitLab** | `http://<gitlab-ip>:8090` | Git SCM, CI/CD, Container Registry |
-| **Jenkins** | `http://<jenkins-ip>:8080` | Build automation and CI/CD |
 | **Nexus** | `http://<nexus-ip>:8081` | Artifact and package repository |
 | **Keycloak** | `http://<keycloak-ip>:8180` | Identity and access management |
 | **Rancher** | `http://<rancher-ip>:8443` | Kubernetes cluster management |

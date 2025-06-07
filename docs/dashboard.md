@@ -44,7 +44,7 @@ To add custom services to the dashboard, extend the `service_urls` variable in y
 
 ```yaml
 service_urls:
-  jenkins: "http://jenkins-server:8080"
+  gitlab: "http://gitlab-server:8090"
   # Add your custom service
   grafana: "http://grafana-server:3000"
 ```
@@ -57,7 +57,7 @@ If service statuses are not updating:
 
 1. Check that the cron job is running: `sudo crontab -u nginx -l`
 2. Verify the status file is being created: `cat /var/www/html/assets/status.json`
-3. Ensure the Python script can access the services: `sudo -u nginx python3 /usr/local/bin/check_services.py --services '{"jenkins": "http://jenkins-server:8080"}' --output /tmp/test-status.json`
+3. Ensure the Python script can access the services: `sudo -u nginx python3 /usr/local/bin/check_services.py --services '{"gitlab": "http://gitlab-server:8090"}' --output /tmp/test-status.json`
 
 ## Security Notes
 

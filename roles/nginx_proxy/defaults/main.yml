@@ -68,7 +68,6 @@ dashboard_logo_enabled: true
 dashboard_logo_path: "/var/www/html/assets/logo.svg"
 
 # Tool settings - modify these based on your inventory
-jenkins_url: "http://{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}:8080"
 gitlab_url: "http://{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}:8090"
 gitlab_registry_url: "http://{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}:5050"
 gitlab_max_body_size: "1g"
@@ -84,7 +83,6 @@ nginx_proxy_timeout: 300
 
 # Service status checking
 service_urls:
-  jenkins: "{{ jenkins_url }}"
   gitlab: "{{ gitlab_url }}"
   rancher: "{{ rancher_url }}"
   keycloak: "{{ keycloak_url }}"

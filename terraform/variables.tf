@@ -1,6 +1,6 @@
-# Variables for OpenStack DevOps Suite Infrastructure
+# Variables for VMware OpenStack DevOps Suite Infrastructure
 variable "auth_url" {
-  description = "OpenStack authentication URL"
+  description = "OpenStack authentication URL (VMware Integrated OpenStack)"
   type        = string
   default     = "https://openstack.example.com:5000/v3"
 }
@@ -69,4 +69,42 @@ variable "region" {
   description = "OpenStack region"
   type        = string
   default     = "RegionOne"
+}
+
+# VMware-specific optimizations
+variable "vmware_datacenter" {
+  description = "VMware datacenter name for VM placement"
+  type        = string
+  default     = ""
+}
+
+variable "vm_anti_affinity" {
+  description = "Enable VM anti-affinity for high availability"
+  type        = bool
+  default     = true
+}
+
+variable "enable_vmware_tools" {
+  description = "Enable VMware Tools installation on VMs"
+  type        = bool
+  default     = true
+}
+
+# Volume sizes for persistent storage
+variable "gitlab_volume_size" {
+  description = "Size of GitLab data volume in GB"
+  type        = number
+  default     = 50
+}
+
+variable "nexus_volume_size" {
+  description = "Size of Nexus data volume in GB"
+  type        = number
+  default     = 30
+}
+
+variable "keycloak_volume_size" {
+  description = "Size of Keycloak data volume in GB"
+  type        = number
+  default     = 10
 }

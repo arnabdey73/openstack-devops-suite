@@ -57,7 +57,6 @@
             padding: 20px;
             color: white;
         }
-        .jenkins { background-color: #d33833; }
         .gitlab { background-color: #fc6d26; }
         .rancher { background-color: #0075a8; }
         .keycloak { background-color: #4a4a4a; }
@@ -133,18 +132,6 @@
         </div>
         
         <div class="tools-grid">
-            {% if 'jenkins_servers' in groups %}
-            <div class="tool-card">
-                <div class="tool-header jenkins">
-                    <h2>Jenkins CI</h2>
-                </div>
-                <div class="tool-content">
-                    <h3>Continuous Integration</h3>
-                    <p>Automate your build, test, and deployment pipeline with Jenkins, the leading open-source automation server.</p>
-                    <a href="/jenkins/" class="btn">Access Jenkins</a>
-                    <div class="service-stats">
-                        <span class="status-badge status-online">Online</span>
-                        <span>{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}</span>
                     </div>
                 </div>
             </div>

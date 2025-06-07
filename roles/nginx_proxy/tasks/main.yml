@@ -157,19 +157,6 @@
     - configuration
 
 # Setup sites for each of the DevOps tools
-- name: Setup Jenkins proxy configuration
-  template:
-    src: jenkins.conf.j2
-    dest: /etc/nginx/conf.d/jenkins.conf
-    owner: "{{ nginx_user }}"
-    group: "{{ nginx_group }}"
-    mode: '0644'
-  when: "'jenkins_servers' in groups"
-  notify: reload nginx
-  tags:
-    - nginx
-    - jenkins
-
 - name: Setup Rancher proxy configuration
   template:
     src: rancher.conf.j2

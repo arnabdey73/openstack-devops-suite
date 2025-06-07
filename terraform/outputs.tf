@@ -1,26 +1,49 @@
-# Outputs for OpenStack DevOps Suite Infrastructure
-output "jenkins_ip" {
-  description = "Jenkins server IP address"
-  value       = openstack_compute_instance_v2.jenkins.access_ip_v4
+# Outputs for VMware OpenStack DevOps Suite Infrastructure
+
+# Floating IP addresses for external access
+output "gitlab_floating_ip" {
+  description = "GitLab server floating IP address (Primary CI/CD and SCM)"
+  value       = openstack_networking_floatingip_v2.gitlab_fip.address
 }
 
+output "nginx_floating_ip" {
+  description = "NGINX proxy floating IP address (Dashboard access)"
+  value       = openstack_networking_floatingip_v2.nginx_fip.address
+}
+
+output "nexus_floating_ip" {
+  description = "Nexus repository floating IP address"
+  value       = openstack_networking_floatingip_v2.nexus_fip.address
+}
+
+output "keycloak_floating_ip" {
+  description = "Keycloak floating IP address"
+  value       = openstack_networking_floatingip_v2.keycloak_fip.address
+}
+
+output "rancher_floating_ip" {
+  description = "Rancher floating IP address"
+  value       = openstack_networking_floatingip_v2.rancher_fip.address
+}
+
+# Internal IP addresses for service communication
 output "gitlab_ip" {
-  description = "GitLab server IP address"
+  description = "GitLab server internal IP address"
   value       = openstack_compute_instance_v2.gitlab.access_ip_v4
 }
 
 output "nexus_ip" {
-  description = "Nexus repository server IP address"
+  description = "Nexus repository server internal IP address"
   value       = openstack_compute_instance_v2.nexus.access_ip_v4
 }
 
 output "keycloak_ip" {
-  description = "Keycloak server IP address"
+  description = "Keycloak server internal IP address"
   value       = openstack_compute_instance_v2.keycloak.access_ip_v4
 }
 
 output "rancher_ip" {
-  description = "Rancher server IP address"
+  description = "Rancher server internal IP address"
   value       = openstack_compute_instance_v2.rancher.access_ip_v4
 }
 
@@ -53,7 +76,6 @@ output "key_pair_name" {
 output "ansible_inventory" {
   description = "Ansible inventory in YAML format"
   value = templatefile("${path.module}/templates/inventory.yml.tpl", {
-    jenkins_ip  = openstack_compute_instance_v2.jenkins.access_ip_v4
     gitlab_ip   = openstack_compute_instance_v2.gitlab.access_ip_v4
     nexus_ip    = openstack_compute_instance_v2.nexus.access_ip_v4
     keycloak_ip = openstack_compute_instance_v2.keycloak.access_ip_v4

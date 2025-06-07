@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# DevOps Suite Deployment Script
+# GitLab-Centered DevOps Suite Deployment Script for VMware OpenStack
 # This script orchestrates Terraform infrastructure provisioning and Ansible configuration
+# Optimized for VMware vSphere with OpenStack integration
 
 set -e  # Exit on any error
 
@@ -165,10 +166,6 @@ deploy_services() {
     ansible-playbook -i "$INVENTORY_FILE" playbooks/gitlab.yml \
         --extra-vars "gitlab_root_password=${GITLAB_ROOT_PASSWORD:-ChangeMe123!}"
     
-    # Deploy Jenkins
-    log "Deploying Jenkins..."
-    ansible-playbook -i "$INVENTORY_FILE" playbooks/jenkins.yml
-    
     # Deploy other services
     log "Deploying remaining services..."
     for service in nexus keycloak rancher kafka redis; do
@@ -190,7 +187,6 @@ verify_deployment() {
     # Extract service IPs
     NGINX_IP=$(jq -r '.nginx_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     GITLAB_IP=$(jq -r '.gitlab_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
-    JENKINS_IP=$(jq -r '.jenkins_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     
     # Check services
     log "Checking service availability..."
@@ -202,43 +198,38 @@ verify_deployment() {
     fi
     
     if curl -f -s "http://$GITLAB_IP:8090" > /dev/null; then
-        log_success "GitLab is accessible at http://$GITLAB_IP:8090"
+        log_success "GitLab is accessible at http://$GITLAB_IP:8090 (Primary CI/CD and SCM)"
     else
         log_warning "GitLab may not be ready yet"
-    fi
-    
-    if curl -f -s "http://$JENKINS_IP:8080" > /dev/null; then
-        log_success "Jenkins is accessible at http://$JENKINS_IP:8080"
-    else
-        log_warning "Jenkins may not be ready yet"
     fi
 }
 
 # Print deployment summary
 print_summary() {
-    log "Deployment Summary"
+    log "GitLab-Centered DevOps Suite Deployment Summary"
     echo "===========================================" | tee -a "$LOG_FILE"
     
     # Service URLs
     NGINX_IP=$(jq -r '.nginx_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     GITLAB_IP=$(jq -r '.gitlab_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
-    JENKINS_IP=$(jq -r '.jenkins_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     NEXUS_IP=$(jq -r '.nexus_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     KEYCLOAK_IP=$(jq -r '.keycloak_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     RANCHER_IP=$(jq -r '.rancher_ip.value' "$PROJECT_ROOT/terraform-outputs.json")
     
     echo "🌐 Dashboard: http://$NGINX_IP" | tee -a "$LOG_FILE"
-    echo "🦊 GitLab: http://$GITLAB_IP:8090" | tee -a "$LOG_FILE"
+    echo "🦊 GitLab (Primary CI/CD & SCM): http://$GITLAB_IP:8090" | tee -a "$LOG_FILE"
     echo "   - Username: root" | tee -a "$LOG_FILE"
     echo "   - Password: ${GITLAB_ROOT_PASSWORD:-ChangeMe123!}" | tee -a "$LOG_FILE"
     echo "   - Registry: http://$GITLAB_IP:5050" | tee -a "$LOG_FILE"
-    echo "🔧 Jenkins: http://$JENKINS_IP:8080" | tee -a "$LOG_FILE"
+    echo "   - CI/CD: Integrated GitLab CI/CD (no Jenkins needed)" | tee -a "$LOG_FILE"
     echo "📦 Nexus: http://$NEXUS_IP:8081" | tee -a "$LOG_FILE"
     echo "🔐 Keycloak: http://$KEYCLOAK_IP:8180" | tee -a "$LOG_FILE"
     echo "☸️  Rancher: http://$RANCHER_IP:8443" | tee -a "$LOG_FILE"
     echo "===========================================" | tee -a "$LOG_FILE"
+    echo "💡 VMware OpenStack Optimized Deployment" | tee -a "$LOG_FILE"
+    echo "===========================================" | tee -a "$LOG_FILE"
     
-    log_success "DevOps Suite deployment completed successfully!"
+    log_success "GitLab-Centered DevOps Suite deployment completed successfully!"
 }
 
 # Cleanup function
@@ -255,7 +246,7 @@ cleanup_infrastructure() {
 main() {
     case "${1:-deploy}" in
         "deploy")
-            log "Starting DevOps Suite deployment..."
+            log "Starting GitLab-Centered DevOps Suite deployment on VMware OpenStack..."
             check_prerequisites
             init_terraform
             plan_infrastructure

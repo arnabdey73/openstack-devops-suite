@@ -1,5 +1,4 @@
 {
-  "jenkins": "offline",
   "gitlab": "offline",
   "rancher": "offline",
   "keycloak": "offline",
