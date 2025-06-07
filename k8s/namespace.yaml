@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-suite
+  labels:
+    name: devops-suite
+    environment: production
+    app.kubernetes.io/name: devops-suite
+    app.kubernetes.io/version: "1.0.0"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-config
+  namespace: devops-suite
+data:
+  deployment-type: "kubernetes"
+  environment: "production"
+  domain: "yourdomain.com"
+  gitlab-version: "16.5.1-ce"
+  rancher-version: "v2.7.9"
+  keycloak-version: "22.0.5"
+  nexus-version: "3.41.1"

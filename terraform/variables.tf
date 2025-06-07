@@ -108,3 +108,52 @@ variable "keycloak_volume_size" {
   type        = number
   default     = 10
 }
+
+# Kubernetes Integration Variables
+variable "enable_kubernetes_deployment" {
+  description = "Enable Kubernetes deployment alongside VM deployment"
+  type        = bool
+  default     = false
+}
+
+variable "kubeconfig_path" {
+  description = "Path to kubeconfig file for Kubernetes deployment"
+  type        = string
+  default     = "~/.kube/config"
+}
+
+variable "letsencrypt_email" {
+  description = "Email address for Let's Encrypt certificates"
+  type        = string
+  default     = ""
+}
+
+variable "kubernetes_cluster_endpoint" {
+  description = "Kubernetes cluster API endpoint"
+  type        = string
+  default     = ""
+}
+
+variable "kubernetes_namespace" {
+  description = "Kubernetes namespace for DevOps suite deployment"
+  type        = string
+  default     = "devops-suite"
+}
+
+variable "domain_name" {
+  description = "Base domain name for services (e.g., yourdomain.com)"
+  type        = string
+  default     = "yourdomain.com"
+}
+
+variable "ingress_class" {
+  description = "Kubernetes ingress class to use"
+  type        = string
+  default     = "nginx"
+}
+
+variable "enable_ssl_certificates" {
+  description = "Enable automatic SSL certificate generation"
+  type        = bool
+  default     = true
+}

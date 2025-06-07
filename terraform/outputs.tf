@@ -85,3 +85,82 @@ output "ansible_inventory" {
     nginx_ip    = openstack_compute_instance_v2.nginx.access_ip_v4
   })
 }
+
+# =============================================================================
+# KUBERNETES DEPLOYMENT OUTPUTS
+# =============================================================================
+
+output "kubernetes_deployment_enabled" {
+  description = "Whether Kubernetes deployment is enabled"
+  value       = var.enable_kubernetes_deployment
+}
+
+output "kubernetes_namespace" {
+  description = "Kubernetes namespace for DevOps suite"
+  value       = var.enable_kubernetes_deployment ? kubernetes_namespace.devops_suite[0].metadata[0].name : null
+}
+
+output "ingress_class" {
+  description = "Kubernetes ingress class being used"
+  value       = var.enable_kubernetes_deployment ? var.ingress_class : null
+}
+
+output "domain_name" {
+  description = "Base domain name for services"
+  value       = var.domain_name
+}
+
+# Service URLs for Kubernetes deployment
+output "gitlab_k8s_url" {
+  description = "GitLab URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://gitlab.${var.domain_name}" : null
+}
+
+output "rancher_k8s_url" {
+  description = "Rancher URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://rancher.${var.domain_name}" : null
+}
+
+output "keycloak_k8s_url" {
+  description = "Keycloak URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://keycloak.${var.domain_name}" : null
+}
+
+output "nexus_k8s_url" {
+  description = "Nexus URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://nexus.${var.domain_name}" : null
+}
+
+output "dashboard_k8s_url" {
+  description = "Dashboard URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://dashboard.${var.domain_name}" : null
+}
+
+output "docker_registry_k8s_url" {
+  description = "Docker registry URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://docker.${var.domain_name}" : null
+}
+
+# SSL Certificate information
+output "ssl_certificates_enabled" {
+  description = "Whether SSL certificates are enabled"
+  value       = var.enable_kubernetes_deployment && var.enable_ssl_certificates
+}
+
+output "letsencrypt_email" {
+  description = "Email used for Let's Encrypt certificates"
+  value       = var.enable_kubernetes_deployment && var.letsencrypt_email != "" ? var.letsencrypt_email : null
+  sensitive   = true
+}
+
+# Deployment summary
+output "deployment_summary" {
+  description = "Summary of deployment configuration"
+  value = {
+    vm_deployment         = true
+    kubernetes_deployment = var.enable_kubernetes_deployment
+    ssl_enabled          = var.enable_kubernetes_deployment && var.enable_ssl_certificates
+    environment          = var.environment_name
+    domain              = var.domain_name
+  }
+}

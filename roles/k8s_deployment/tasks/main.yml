@@ -1,0 +1,219 @@
+---
+# Kubernetes Deployment Tasks
+
+- name: Check if kubectl is available
+  command: kubectl version --client
+  register: kubectl_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if kubectl is not available
+  fail:
+    msg: "kubectl is not available or not properly configured"
+  when: kubectl_check.rc != 0
+
+- name: Check Kubernetes cluster connectivity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: default
+  register: cluster_check
+  failed_when: false
+
+- name: Fail if cannot connect to Kubernetes cluster
+  fail:
+    msg: "Cannot connect to Kubernetes cluster. Check your kubeconfig."
+  when: cluster_check.failed | default(false)
+
+- name: Create DevOps Suite namespace
+  kubernetes.core.k8s:
+    name: "{{ kubernetes_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+    definition:
+      metadata:
+        labels:
+          name: "{{ kubernetes_namespace }}"
+          environment: "{{ ansible_environment | default('production') }}"
+          app.kubernetes.io/name: "devops-suite"
+          app.kubernetes.io/version: "1.0.0"
+
+- name: Create deployment configuration ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: deployment-config
+        namespace: "{{ kubernetes_namespace }}"
+      data:
+        deployment-type: "kubernetes"
+        environment: "{{ ansible_environment | default('production') }}"
+        domain: "{{ domain_name }}"
+        gitlab-version: "16.5.1-ce"
+        rancher-version: "v2.7.9"
+        keycloak-version: "22.0.5"
+        nexus-version: "3.41.1"
+
+- name: Add Helm repositories
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    repo_url: "{{ item.url }}"
+  loop:
+    - name: ingress-nginx
+      url: "{{ ingress_controller.repository }}"
+    - name: jetstack
+      url: "{{ cert_manager.repository }}"
+  when: enable_ssl_certificates or ingress_controller is defined
+
+- name: Install NGINX Ingress Controller
+  kubernetes.core.helm:
+    name: nginx-ingress
+    chart_ref: "{{ ingress_controller.repository.split('/')[-1] }}/{{ ingress_controller.chart }}"
+    release_namespace: "{{ ingress_controller.namespace }}"
+    create_namespace: true
+    chart_version: "{{ ingress_controller.version }}"
+    values: "{{ ingress_controller.values }}"
+    wait: true
+    wait_timeout: "{{ timeouts.deployment_ready }}"
+
+- name: Install cert-manager (if SSL certificates enabled)
+  kubernetes.core.helm:
+    name: cert-manager
+    chart_ref: "{{ cert_manager.repository.split('/')[-1] }}/{{ cert_manager.chart }}"
+    release_namespace: "{{ cert_manager.namespace }}"
+    create_namespace: true
+    chart_version: "{{ cert_manager.version }}"
+    values: "{{ cert_manager.values }}"
+    wait: true
+    wait_timeout: "{{ timeouts.deployment_ready }}"
+  when: enable_ssl_certificates and letsencrypt_email != ""
+
+- name: Wait for cert-manager to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: cert-manager
+    namespace: "{{ cert_manager.namespace }}"
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: "{{ timeouts.deployment_ready | int }}"
+  when: enable_ssl_certificates and letsencrypt_email != ""
+
+- name: Create Let's Encrypt ClusterIssuer (Production)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: "{{ letsencrypt_email }}"
+          privateKeySecretRef:
+            name: letsencrypt-prod
+          solvers:
+          - http01:
+              ingress:
+                class: "{{ ingress_class }}"
+  when: enable_ssl_certificates and letsencrypt_email != ""
+
+- name: Create Let's Encrypt ClusterIssuer (Staging)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-staging
+      spec:
+        acme:
+          server: https://acme-staging-v02.api.letsencrypt.org/directory
+          email: "{{ letsencrypt_email }}"
+          privateKeySecretRef:
+            name: letsencrypt-staging
+          solvers:
+          - http01:
+              ingress:
+                class: "{{ ingress_class }}"
+  when: enable_ssl_certificates and letsencrypt_email != ""
+
+- name: Apply Kubernetes services from template
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  with_file:
+    - "{{ playbook_dir }}/../k8s/services.yaml"
+  register: services_result
+
+- name: Apply Kubernetes ingress from template
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  with_file:
+    - "{{ playbook_dir }}/../k8s/ingress.yaml"
+  register: ingress_result
+
+- name: Wait for NGINX Ingress Controller to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: nginx-ingress-ingress-nginx-controller
+    namespace: "{{ ingress_controller.namespace }}"
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: "{{ timeouts.ingress_ready | int }}"
+
+- name: Get Ingress Controller LoadBalancer IP
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    name: nginx-ingress-ingress-nginx-controller
+    namespace: "{{ ingress_controller.namespace }}"
+  register: ingress_service
+
+- name: Display Ingress LoadBalancer IP
+  debug:
+    msg: |
+      Ingress LoadBalancer IP: {{ ingress_service.resources[0].status.loadBalancer.ingress[0].ip | default('Pending') }}
+      
+      Configure your DNS with these records:
+      {% for service_name, service_config in services.items() %}
+      {{ service_config.subdomain }}.{{ domain_name }}  A  {{ ingress_service.resources[0].status.loadBalancer.ingress[0].ip | default('PENDING_IP') }}
+      {% endfor %}
+  when: ingress_service.resources | length > 0
+
+- name: Verify ingress resources are created
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: Ingress
+    namespace: "{{ kubernetes_namespace }}"
+  register: ingress_status
+
+- name: Display deployment summary
+  debug:
+    msg: |
+      Kubernetes Deployment Summary:
+      ================================
+      Namespace: {{ kubernetes_namespace }}
+      Domain: {{ domain_name }}
+      SSL Certificates: {{ enable_ssl_certificates }}
+      Ingress Class: {{ ingress_class }}
+      
+      Services deployed:
+      {% for service_name, service_config in services.items() %}
+      - {{ service_name | title }}: https://{{ service_config.subdomain }}.{{ domain_name }}
+      {% endfor %}
+      
+      Ingress resources: {{ ingress_status.resources | length }}
+      
+      Next steps:
+      1. Configure DNS records as shown above
+      2. Wait for SSL certificates to be issued (if enabled)
+      3. Access services via their URLs

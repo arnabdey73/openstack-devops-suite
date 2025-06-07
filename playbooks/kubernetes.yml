@@ -1,0 +1,109 @@
+---
+# Kubernetes Deployment Playbook for DevOps Suite
+# This playbook deploys the GitLab-centered DevOps suite to Kubernetes
+
+- name: Deploy DevOps Suite to Kubernetes
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  
+  vars:
+    # Override these variables as needed
+    kubernetes_namespace: "{{ k8s_namespace | default('devops-suite') }}"
+    domain_name: "{{ k8s_domain | default('yourdomain.com') }}"
+    enable_ssl_certificates: "{{ k8s_ssl | default(true) }}"
+    letsencrypt_email: "{{ k8s_letsencrypt_email | default('') }}"
+    ingress_class: "{{ k8s_ingress_class | default('nginx') }}"
+    
+  pre_tasks:
+    - name: Check required variables
+      assert:
+        that:
+          - domain_name != "yourdomain.com"
+          - letsencrypt_email != "" or not enable_ssl_certificates
+        fail_msg: |
+          Please configure the following variables:
+          - domain_name: Your actual domain name
+          - letsencrypt_email: Your email for SSL certificates (if SSL enabled)
+          
+          Example:
+          ansible-playbook playbooks/kubernetes.yml -e domain_name=example.com -e letsencrypt_email=admin@example.com
+
+    - name: Display deployment configuration
+      debug:
+        msg: |
+          Kubernetes Deployment Configuration:
+          ===================================
+          Namespace: {{ kubernetes_namespace }}
+          Domain: {{ domain_name }}
+          SSL Certificates: {{ enable_ssl_certificates }}
+          Let's Encrypt Email: {{ letsencrypt_email if enable_ssl_certificates else 'N/A' }}
+          Ingress Class: {{ ingress_class }}
+          
+          Services to be deployed:
+          - GitLab (Primary):   https://gitlab.{{ domain_name }}
+          - Dashboard:          https://dashboard.{{ domain_name }}
+          - Rancher K8s:        https://rancher.{{ domain_name }}
+          - Keycloak IAM:       https://keycloak.{{ domain_name }}
+          - Nexus Repository:   https://nexus.{{ domain_name }}
+          - Docker Registry:    https://docker.{{ domain_name }}
+
+  roles:
+    - role: k8s_deployment
+      vars:
+        kubernetes_namespace: "{{ kubernetes_namespace }}"
+        domain_name: "{{ domain_name }}"
+        enable_ssl_certificates: "{{ enable_ssl_certificates }}"
+        letsencrypt_email: "{{ letsencrypt_email }}"
+        ingress_class: "{{ ingress_class }}"
+
+  post_tasks:
+    - name: Wait for certificates to be ready (if SSL enabled)
+      kubernetes.core.k8s_info:
+        api_version: cert-manager.io/v1
+        kind: Certificate
+        namespace: "{{ kubernetes_namespace }}"
+        name: "{{ item }}"
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 300
+      loop:
+        - devops-suite-cert
+        - nexus-docker-cert
+      when: enable_ssl_certificates and letsencrypt_email != ""
+      ignore_errors: true
+
+    - name: Display final access information
+      debug:
+        msg: |
+          🎉 Kubernetes Deployment Completed!
+          
+          Your DevOps Suite is now available at:
+          
+          🦊 GitLab (Primary CI/CD):   https://gitlab.{{ domain_name }}
+          📊 Dashboard:                https://dashboard.{{ domain_name }}
+          🐄 Rancher K8s:              https://rancher.{{ domain_name }}
+          🔐 Keycloak IAM:             https://keycloak.{{ domain_name }}
+          📦 Nexus Repository:         https://nexus.{{ domain_name }}
+          🐳 Docker Registry:          https://docker.{{ domain_name }}
+          
+          {% if enable_ssl_certificates %}
+          🔒 SSL certificates are being automatically provisioned by Let's Encrypt.
+          It may take a few minutes for certificates to be issued.
+          {% else %}
+          ⚠️  SSL certificates are disabled. Consider enabling them for production use.
+          {% endif %}
+          
+          To check the status:
+          kubectl get all -n {{ kubernetes_namespace }}
+          kubectl get ingress -n {{ kubernetes_namespace }}
+          {% if enable_ssl_certificates %}
+          kubectl get certificates -n {{ kubernetes_namespace }}
+          {% endif %}
+
+  tags:
+    - kubernetes
+    - k8s
+    - ingress
+    - ssl

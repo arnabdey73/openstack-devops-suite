@@ -1,0 +1,176 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-service
+  namespace: devops-suite
+  labels:
+    app: gitlab
+    tier: scm
+    component: gitlab-ce
+spec:
+  selector:
+    app: gitlab
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  - name: ssh
+    port: 22
+    targetPort: 22
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rancher-service
+  namespace: devops-suite
+  labels:
+    app: rancher
+    tier: orchestration
+    component: rancher-server
+spec:
+  selector:
+    app: rancher
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-service
+  namespace: devops-suite
+  labels:
+    app: keycloak
+    tier: security
+    component: keycloak-iam
+spec:
+  selector:
+    app: keycloak
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: https
+    port: 8443
+    targetPort: 8443
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-service
+  namespace: devops-suite
+  labels:
+    app: nexus
+    tier: repository
+    component: nexus-repository
+spec:
+  selector:
+    app: nexus
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  - name: docker-registry
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-service
+  namespace: devops-suite
+  labels:
+    app: dashboard
+    tier: frontend
+    component: nginx-dashboard
+spec:
+  selector:
+    app: dashboard
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: devops-suite
+  labels:
+    app: kafka
+    tier: messaging
+    component: kafka-cluster
+spec:
+  clusterIP: None
+  selector:
+    app: kafka
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+    protocol: TCP
+  - name: zookeeper
+    port: 2181
+    targetPort: 2181
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: devops-suite
+  labels:
+    app: redis
+    tier: caching
+    component: redis-cluster
+spec:
+  selector:
+    app: redis
+    role: master
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  - name: sentinel
+    port: 26379
+    targetPort: 26379
+    protocol: TCP
+  type: ClusterIP
+---
+# TCP Services ConfigMap for GitLab SSH and other TCP services
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tcp-services
+  namespace: devops-suite
+data:
+  2222: "devops-suite/gitlab-service:22"
+  6379: "devops-suite/redis-service:6379"
+  9092: "devops-suite/kafka-headless:9092"

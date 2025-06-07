@@ -5,6 +5,9 @@ stages:
   - infrastructure
   - configure
   - verify
+  - test
+  - performance
+  - security
   - cleanup
 
 variables:
@@ -14,6 +17,14 @@ variables:
   ANSIBLE_HOST_KEY_CHECKING: "False"
   ANSIBLE_STDOUT_CALLBACK: yaml
   VMWARE_OPTIMIZED: "true"
+  
+  # Hybrid Deployment Configuration
+  DEPLOYMENT_TYPE: "hybrid"  # vm, kubernetes, or hybrid
+  KUBERNETES_NAMESPACE: "devops-suite"
+  ENABLE_VMS: "true"
+  ENABLE_KUBERNETES: "false"
+  ENABLE_SSL: "true"
+  DOMAIN_NAME: "yourdomain.com"
 
 # Terraform validation
 terraform:validate:
@@ -233,7 +244,7 @@ terraform:destroy:
 
 # Security scanning (optional)
 security:scan:
-  stage: verify
+  stage: security
   image: owasp/zap2docker-stable:latest
   script:
     - |
@@ -250,3 +261,290 @@ security:scan:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   allow_failure: true
+
+# =============================================================================
+# COMPREHENSIVE TESTING JOBS
+# =============================================================================
+
+# Pre-deployment validation tests
+test:pre-deployment:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash curl jq ansible kubectl
+  script:
+    - chmod +x scripts/test-hybrid-deployment.sh
+    - ./scripts/test-hybrid-deployment.sh --pre-deployment
+  artifacts:
+    reports:
+      junit: logs/test-results-*.xml
+    paths:
+      - logs/
+    expire_in: 1 week
+  dependencies:
+    - terraform:plan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Post-deployment comprehensive testing
+test:post-deployment:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash curl jq ansible kubectl
+  script:
+    - chmod +x scripts/test-hybrid-deployment.sh
+    - ./scripts/test-hybrid-deployment.sh --post-deployment --deployment-type $DEPLOYMENT_TYPE
+  artifacts:
+    reports:
+      junit: logs/test-results-*.xml
+    paths:
+      - logs/
+    expire_in: 1 week
+  dependencies:
+    - deploy:proxy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# SSL certificate validation
+test:ssl-certificates:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash curl openssl kubectl
+  script:
+    - chmod +x scripts/test-ssl-certificates.sh
+    - |
+      if [[ "$ENABLE_SSL" == "true" ]]; then
+        ./scripts/test-ssl-certificates.sh --domain $DOMAIN_NAME
+      else
+        echo "SSL testing skipped (ENABLE_SSL=false)"
+      fi
+  artifacts:
+    paths:
+      - logs/ssl-test-*.log
+    expire_in: 1 week
+  dependencies:
+    - deploy:proxy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $ENABLE_SSL == "true"
+  allow_failure: true
+
+# Integration tests with Ansible
+test:integration:
+  stage: test
+  image: cytopia/ansible:latest
+  script:
+    - cd $ANSIBLE_ROOT
+    - |
+      ansible-playbook -i inventory/terraform-hosts.yml \
+        playbooks/integration-tests.yml \
+        --extra-vars "deployment_type=$DEPLOYMENT_TYPE"
+  artifacts:
+    paths:
+      - logs/integration-*.log
+    expire_in: 1 week
+  dependencies:
+    - generate:inventory
+    - deploy:proxy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Performance and load testing
+performance:load-test:
+  stage: performance
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash curl apache2-utils siege
+  script:
+    - chmod +x scripts/test-performance.sh
+    - ./scripts/test-performance.sh --concurrent-users 10 --duration 60
+  artifacts:
+    paths:
+      - logs/performance-*.txt
+      - logs/performance-*.json
+    expire_in: 1 week
+  dependencies:
+    - test:post-deployment
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  allow_failure: true
+
+# Stress testing (manual trigger only)
+performance:stress-test:
+  stage: performance
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash curl apache2-utils siege
+  script:
+    - chmod +x scripts/test-performance.sh
+    - ./scripts/test-performance.sh --stress-test --concurrent-users 50 --duration 300
+  artifacts:
+    paths:
+      - logs/stress-test-*.txt
+      - logs/stress-test-*.json
+    expire_in: 1 week
+  dependencies:
+    - test:post-deployment
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual
+  allow_failure: true
+
+# Test report generation
+test:generate-reports:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash jq
+  script:
+    - |
+      # Generate consolidated test report
+      echo "# OpenStack DevOps Suite - Test Report" > test-report.md
+      echo "Generated: $(date)" >> test-report.md
+      echo "" >> test-report.md
+      
+      # Add test results if available
+      if [ -f logs/test-results-*.log ]; then
+        echo "## Test Results" >> test-report.md
+        cat logs/test-results-*.log >> test-report.md
+      fi
+      
+      # Add performance results if available
+      if [ -f logs/performance-*.txt ]; then
+        echo "## Performance Results" >> test-report.md
+        cat logs/performance-*.txt >> test-report.md
+      fi
+      
+      echo "Test report generated successfully"
+  artifacts:
+    paths:
+      - test-report.md
+    expire_in: 1 month
+  dependencies:
+    - test:post-deployment
+    - performance:load-test
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  allow_failure: true
+
+# =============================================================================
+# KUBERNETES-SPECIFIC JOBS
+# =============================================================================
+
+# Validate Kubernetes manifests
+kubernetes:validate:
+  stage: validate
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl --dry-run=client apply -f k8s/
+    - |
+      # Check for required variables
+      if [[ "$DEPLOYMENT_TYPE" == "kubernetes" || "$DEPLOYMENT_TYPE" == "hybrid" ]]; then
+        if [[ -z "$DOMAIN_NAME" ]]; then
+          echo "Error: DOMAIN_NAME is required for Kubernetes deployment"
+          exit 1
+        fi
+      fi
+  rules:
+    - if: $DEPLOYMENT_TYPE == "kubernetes" || $DEPLOYMENT_TYPE == "hybrid"
+
+# Deploy Kubernetes resources
+kubernetes:deploy:
+  stage: infrastructure
+  image: 
+    name: alpine/k8s:1.28.4
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache curl bash
+    - curl https://get.helm.sh/helm-v3.13.2-linux-amd64.tar.gz | tar -xz
+    - mv linux-amd64/helm /usr/local/bin/
+  script:
+    - |
+      # Apply namespace and services
+      kubectl apply -f k8s/namespace.yaml
+      kubectl apply -f k8s/services.yaml
+      
+      # Install NGINX Ingress if not present
+      if ! kubectl get ingressclass nginx &> /dev/null; then
+        echo "Installing NGINX Ingress Controller..."
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+        helm upgrade --install nginx-ingress ingress-nginx/ingress-nginx \
+          --namespace ingress-nginx \
+          --create-namespace \
+          --set controller.service.type=LoadBalancer \
+          --wait --timeout=300s
+      fi
+      
+      # Install cert-manager if SSL is enabled
+      if [[ "$ENABLE_SSL" == "true" && ! -z "$LETSENCRYPT_EMAIL" ]]; then
+        if ! kubectl get crd certificates.cert-manager.io &> /dev/null; then
+          echo "Installing cert-manager..."
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --set installCRDs=true \
+            --wait --timeout=300s
+        fi
+        kubectl apply -f k8s/certificates.yaml
+      fi
+      
+      # Apply ingress
+      kubectl apply -f k8s/ingress.yaml
+      
+      # Wait for ingress controller
+      kubectl wait --namespace ingress-nginx \
+        --for=condition=ready pod \
+        --selector=app.kubernetes.io/component=controller \
+        --timeout=300s
+  environment:
+    name: kubernetes-$CI_COMMIT_REF_SLUG
+    kubernetes:
+      namespace: $KUBERNETES_NAMESPACE
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && ($DEPLOYMENT_TYPE == "kubernetes" || $DEPLOYMENT_TYPE == "hybrid")
+      when: manual
+
+# Test Kubernetes connectivity
+kubernetes:test:
+  stage: verify
+  image: curlimages/curl:latest
+  script:
+    - |
+      # Test ingress endpoints
+      INGRESS_IP=$(kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+      
+      if [[ ! -z "$INGRESS_IP" && "$INGRESS_IP" != "null" ]]; then
+        echo "Testing Ingress endpoints..."
+        # Test with IP (since DNS might not be configured)
+        curl -f -H "Host: gitlab.$DOMAIN_NAME" http://$INGRESS_IP || echo "GitLab not ready"
+        curl -f -H "Host: dashboard.$DOMAIN_NAME" http://$INGRESS_IP || echo "Dashboard not ready"
+      else
+        echo "Ingress IP not available yet"
+      fi
+  rules:
+    - if: $DEPLOYMENT_TYPE == "kubernetes" || $DEPLOYMENT_TYPE == "hybrid"
+
+# Hybrid deployment job
+hybrid:deploy:
+  stage: infrastructure
+  image: 
+    name: hashicorp/terraform:1.6
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache ansible kubectl helm curl bash
+    - curl https://get.helm.sh/helm-v3.13.2-linux-amd64.tar.gz | tar -xz
+    - mv linux-amd64/helm /usr/local/bin/
+  script:
+    - chmod +x scripts/deploy-hybrid.sh
+    - export AUTO_APPROVE=true
+    - ./scripts/deploy-hybrid.sh deploy
+  environment:
+    name: hybrid-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOYMENT_TYPE == "hybrid"
+      when: manual

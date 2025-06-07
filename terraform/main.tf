@@ -6,6 +6,14 @@ terraform {
       source  = "terraform-provider-openstack/openstack"
       version = "~> 1.54"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.11"
+    }
   }
 }
 
@@ -16,6 +24,17 @@ provider "openstack" {
   password    = var.password
   tenant_name = var.project_name
   domain_name = var.user_domain_name
+}
+
+# Configure Kubernetes provider (conditional)
+provider "kubernetes" {
+  config_path = var.enable_kubernetes_deployment ? var.kubeconfig_path : null
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = var.enable_kubernetes_deployment ? var.kubeconfig_path : null
+  }
 }
 
 # Data sources for existing OpenStack resources
@@ -456,4 +475,166 @@ resource "openstack_compute_instance_v2" "nginx" {
 resource "openstack_networking_floatingip_associate_v2" "nginx_fip_associate" {
   floating_ip = openstack_networking_floatingip_v2.nginx_fip.address
   port_id     = openstack_compute_instance_v2.nginx.network[0].port
+}
+
+# =============================================================================
+# KUBERNETES DEPLOYMENT RESOURCES (Conditional)
+# =============================================================================
+
+# Create Kubernetes namespace for DevOps suite
+resource "kubernetes_namespace" "devops_suite" {
+  count = var.enable_kubernetes_deployment ? 1 : 0
+  
+  metadata {
+    name = var.kubernetes_namespace
+    labels = {
+      name        = var.kubernetes_namespace
+      environment = var.environment_name
+      "app.kubernetes.io/name"    = "devops-suite"
+      "app.kubernetes.io/version" = "1.0.0"
+    }
+  }
+}
+
+# Install NGINX Ingress Controller
+resource "helm_release" "nginx_ingress" {
+  count = var.enable_kubernetes_deployment ? 1 : 0
+  
+  name       = "nginx-ingress"
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+  namespace  = "ingress-nginx"
+  version    = "4.8.3"
+  
+  create_namespace = true
+  
+  set {
+    name  = "controller.service.type"
+    value = "LoadBalancer"
+  }
+  
+  set {
+    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/openstack-internal-load-balancer"
+    value = "true"
+  }
+  
+  set {
+    name  = "controller.config.proxy-body-size"
+    value = "500m"
+  }
+  
+  set {
+    name  = "controller.config.proxy-read-timeout"
+    value = "600"
+  }
+  
+  set {
+    name  = "controller.config.proxy-send-timeout"
+    value = "600"
+  }
+}
+
+# Install cert-manager for SSL certificates
+resource "helm_release" "cert_manager" {
+  count = var.enable_kubernetes_deployment && var.enable_ssl_certificates ? 1 : 0
+  
+  name       = "cert-manager"
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+  namespace  = "cert-manager"
+  version    = "v1.13.2"
+  
+  create_namespace = true
+  
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+  
+  set {
+    name  = "global.leaderElection.namespace"
+    value = "cert-manager"
+  }
+}
+
+# ClusterIssuer for Let's Encrypt (only if SSL certificates are enabled)
+resource "kubernetes_manifest" "letsencrypt_issuer" {
+  count = var.enable_kubernetes_deployment && var.enable_ssl_certificates && var.letsencrypt_email != "" ? 1 : 0
+  
+  depends_on = [helm_release.cert_manager]
+  
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata = {
+      name = "letsencrypt-prod"
+    }
+    spec = {
+      acme = {
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        email  = var.letsencrypt_email
+        privateKeySecretRef = {
+          name = "letsencrypt-prod"
+        }
+        solvers = [{
+          http01 = {
+            ingress = {
+              class = var.ingress_class
+            }
+          }
+        }]
+      }
+    }
+  }
+}
+
+# Staging ClusterIssuer for testing
+resource "kubernetes_manifest" "letsencrypt_staging_issuer" {
+  count = var.enable_kubernetes_deployment && var.enable_ssl_certificates && var.letsencrypt_email != "" ? 1 : 0
+  
+  depends_on = [helm_release.cert_manager]
+  
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata = {
+      name = "letsencrypt-staging"
+    }
+    spec = {
+      acme = {
+        server = "https://acme-staging-v02.api.letsencrypt.org/directory"
+        email  = var.letsencrypt_email
+        privateKeySecretRef = {
+          name = "letsencrypt-staging"
+        }
+        solvers = [{
+          http01 = {
+            ingress = {
+              class = var.ingress_class
+            }
+          }
+        }]
+      }
+    }
+  }
+}
+
+# ConfigMap for deployment configuration
+resource "kubernetes_config_map" "deployment_config" {
+  count = var.enable_kubernetes_deployment ? 1 : 0
+  
+  metadata {
+    name      = "deployment-config"
+    namespace = kubernetes_namespace.devops_suite[0].metadata[0].name
+  }
+  
+  data = {
+    "deployment-type"  = "kubernetes"
+    "environment"      = var.environment_name
+    "domain"           = var.domain_name
+    "gitlab-version"   = "16.5.1-ce"
+    "rancher-version"  = "v2.7.9"
+    "keycloak-version" = "22.0.5"
+    "nexus-version"    = "3.41.1"
+  }
 }

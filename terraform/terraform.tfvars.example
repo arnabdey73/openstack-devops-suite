@@ -25,3 +25,27 @@ enable_vmware_tools    = true
 gitlab_volume_size     = 50
 nexus_volume_size      = 30
 keycloak_volume_size   = 10
+
+# =============================================================================
+# KUBERNETES DEPLOYMENT CONFIGURATION
+# =============================================================================
+
+# Enable Kubernetes deployment alongside VM deployment
+enable_kubernetes_deployment = false
+
+# Kubernetes Configuration
+kubeconfig_path              = "~/.kube/config"
+kubernetes_namespace         = "devops-suite"
+kubernetes_cluster_endpoint  = ""
+
+# Domain and SSL Configuration
+domain_name                  = "yourdomain.com"
+ingress_class               = "nginx"
+enable_ssl_certificates     = true
+letsencrypt_email           = ""
+
+# Examples:
+# enable_kubernetes_deployment = true
+# domain_name                 = "example.com"
+# letsencrypt_email          = "admin@example.com"
+# kubeconfig_path            = "/path/to/kubeconfig"

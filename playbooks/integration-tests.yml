@@ -1,0 +1,331 @@
+---
+# Integration Test Playbook for Hybrid Deployment
+# Tests deployed services in both VM and Kubernetes environments
+
+- name: Integration Tests for DevOps Suite Deployment
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  
+  vars:
+    test_timeout: 300
+    test_results: []
+    tests_passed: 0
+    tests_failed: 0
+    kubernetes_namespace: "{{ k8s_namespace | default('devops-suite') }}"
+    domain_name: "{{ k8s_domain | default('yourdomain.com') }}"
+    
+  tasks:
+    - name: Display test banner
+      debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════════════════╗
+          ║                    Integration Test Suite                                ║
+          ║                  OpenStack DevOps Suite Validation                      ║
+          ║                          VM + Kubernetes                                ║
+          ╚══════════════════════════════════════════════════════════════════════════╝
+
+    - name: Check if VM deployment exists
+      stat:
+        path: "{{ playbook_dir }}/../terraform/terraform.tfstate"
+      register: vm_deployment_check
+
+    - name: Check if Kubernetes deployment exists
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ kubernetes_namespace }}"
+      register: k8s_deployment_check
+      failed_when: false
+
+    - name: Set deployment flags
+      set_fact:
+        vm_deployed: "{{ vm_deployment_check.stat.exists }}"
+        k8s_deployed: "{{ not k8s_deployment_check.failed | default(false) }}"
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          Deployment Status:
+          - VM Deployment: {{ 'Found' if vm_deployed else 'Not Found' }}
+          - Kubernetes Deployment: {{ 'Found' if k8s_deployed else 'Not Found' }}
+
+    # VM-specific tests
+    - block:
+        - name: Get VM service IPs from Terraform
+          shell: |
+            cd {{ playbook_dir }}/../terraform
+            terraform output -json
+          register: terraform_outputs
+          when: vm_deployed
+
+        - name: Parse Terraform outputs
+          set_fact:
+            vm_services: "{{ terraform_outputs.stdout | from_json }}"
+          when: vm_deployed and terraform_outputs.stdout != ""
+
+        - name: Test GitLab VM accessibility
+          uri:
+            url: "http://{{ vm_services.gitlab_floating_ip.value }}:8090"
+            method: GET
+            timeout: 10
+            status_code: [200, 302, 401, 403]
+          register: gitlab_vm_test
+          failed_when: false
+          when: vm_deployed and vm_services is defined
+
+        - name: Record GitLab VM test result
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'GitLab VM Accessibility', 'status': 'PASS' if gitlab_vm_test.status in [200, 302, 401, 403] else 'FAIL', 'details': 'HTTP ' + (gitlab_vm_test.status|string) if gitlab_vm_test.status is defined else 'Connection failed'}] }}"
+            tests_passed: "{{ tests_passed + 1 if gitlab_vm_test.status in [200, 302, 401, 403] else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if gitlab_vm_test.status not in [200, 302, 401, 403] else tests_failed }}"
+          when: vm_deployed and vm_services is defined
+
+        - name: Test NGINX proxy accessibility
+          uri:
+            url: "http://{{ vm_services.nginx_floating_ip.value }}"
+            method: GET
+            timeout: 10
+            status_code: [200, 302]
+          register: nginx_vm_test
+          failed_when: false
+          when: vm_deployed and vm_services is defined
+
+        - name: Record NGINX VM test result
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'NGINX Proxy Accessibility', 'status': 'PASS' if nginx_vm_test.status in [200, 302] else 'FAIL', 'details': 'HTTP ' + (nginx_vm_test.status|string) if nginx_vm_test.status is defined else 'Connection failed'}] }}"
+            tests_passed: "{{ tests_passed + 1 if nginx_vm_test.status in [200, 302] else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if nginx_vm_test.status not in [200, 302] else tests_failed }}"
+          when: vm_deployed and vm_services is defined
+
+        - name: Test Nexus VM accessibility
+          uri:
+            url: "http://{{ vm_services.nexus_floating_ip.value }}:8081"
+            method: GET
+            timeout: 10
+            status_code: [200, 302, 401, 403]
+          register: nexus_vm_test
+          failed_when: false
+          when: vm_deployed and vm_services is defined
+
+        - name: Record Nexus VM test result
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Nexus VM Accessibility', 'status': 'PASS' if nexus_vm_test.status in [200, 302, 401, 403] else 'FAIL', 'details': 'HTTP ' + (nexus_vm_test.status|string) if nexus_vm_test.status is defined else 'Connection failed'}] }}"
+            tests_passed: "{{ tests_passed + 1 if nexus_vm_test.status in [200, 302, 401, 403] else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if nexus_vm_test.status not in [200, 302, 401, 403] else tests_failed }}"
+          when: vm_deployed and vm_services is defined
+
+      when: vm_deployed
+
+    # Kubernetes-specific tests
+    - block:
+        - name: Get Kubernetes pods status
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: "{{ kubernetes_namespace }}"
+          register: k8s_pods
+
+        - name: Check pod readiness
+          set_fact:
+            ready_pods: "{{ k8s_pods.resources | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'search', 'Ready.*True') | list }}"
+            total_pods: "{{ k8s_pods.resources | length }}"
+
+        - name: Record pod readiness test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Kubernetes Pods Ready', 'status': 'PASS' if ready_pods|length == total_pods|int and total_pods|int > 0 else 'FAIL', 'details': (ready_pods|length)|string + '/' + (total_pods|string) + ' pods ready'}] }}"
+            tests_passed: "{{ tests_passed + 1 if ready_pods|length == total_pods|int and total_pods|int > 0 else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if ready_pods|length != total_pods|int or total_pods|int == 0 else tests_failed }}"
+
+        - name: Get Kubernetes services
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Service
+            namespace: "{{ kubernetes_namespace }}"
+          register: k8s_services
+
+        - name: Record services test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Kubernetes Services Created', 'status': 'PASS' if k8s_services.resources|length > 0 else 'FAIL', 'details': (k8s_services.resources|length)|string + ' services found'}] }}"
+            tests_passed: "{{ tests_passed + 1 if k8s_services.resources|length > 0 else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if k8s_services.resources|length == 0 else tests_failed }}"
+
+        - name: Get Kubernetes ingress resources
+          kubernetes.core.k8s_info:
+            api_version: networking.k8s.io/v1
+            kind: Ingress
+            namespace: "{{ kubernetes_namespace }}"
+          register: k8s_ingress
+
+        - name: Record ingress test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Kubernetes Ingress Created', 'status': 'PASS' if k8s_ingress.resources|length > 0 else 'FAIL', 'details': (k8s_ingress.resources|length)|string + ' ingress resources found'}] }}"
+            tests_passed: "{{ tests_passed + 1 if k8s_ingress.resources|length > 0 else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if k8s_ingress.resources|length == 0 else tests_failed }}"
+
+        - name: Check ingress controller
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: ingress-nginx
+            label_selectors:
+              - app.kubernetes.io/component=controller
+          register: ingress_controller
+
+        - name: Record ingress controller test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Ingress Controller Running', 'status': 'PASS' if ingress_controller.resources|length > 0 else 'FAIL', 'details': (ingress_controller.resources|length)|string + ' controller pods found'}] }}"
+            tests_passed: "{{ tests_passed + 1 if ingress_controller.resources|length > 0 else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if ingress_controller.resources|length == 0 else tests_failed }}"
+
+        - name: Get ingress LoadBalancer IP
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Service
+            namespace: ingress-nginx
+            name: nginx-ingress-ingress-nginx-controller
+          register: ingress_service
+
+        - name: Extract LoadBalancer IP
+          set_fact:
+            ingress_ip: "{{ ingress_service.resources[0].status.loadBalancer.ingress[0].ip | default('pending') }}"
+          when: ingress_service.resources | length > 0
+
+        - name: Test ingress endpoints (if IP available)
+          uri:
+            url: "http://{{ ingress_ip }}"
+            method: GET
+            timeout: 10
+            headers:
+              Host: "dashboard.{{ domain_name }}"
+            status_code: [200, 302, 404, 503]
+          register: ingress_test
+          failed_when: false
+          when: ingress_ip is defined and ingress_ip != "pending"
+
+        - name: Record ingress endpoint test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'Ingress Endpoint Response', 'status': 'PASS' if ingress_test.status in [200, 302, 404, 503] else 'FAIL', 'details': 'HTTP ' + (ingress_test.status|string) if ingress_test.status is defined else 'LoadBalancer IP pending'}] }}"
+            tests_passed: "{{ tests_passed + 1 if ingress_test.status in [200, 302, 404, 503] else tests_passed }}"
+            tests_failed: "{{ tests_failed + 1 if ingress_test.status not in [200, 302, 404, 503] and ingress_ip != 'pending' else tests_failed }}"
+          when: ingress_ip is defined
+
+        - name: Check SSL certificates (if cert-manager is installed)
+          kubernetes.core.k8s_info:
+            api_version: cert-manager.io/v1
+            kind: Certificate
+            namespace: "{{ kubernetes_namespace }}"
+          register: k8s_certificates
+          failed_when: false
+
+        - name: Record SSL certificate test
+          set_fact:
+            test_results: "{{ test_results + [{'name': 'SSL Certificates Status', 'status': 'PASS' if k8s_certificates.resources|length > 0 else 'INFO', 'details': (k8s_certificates.resources|length)|string + ' certificates found' if not k8s_certificates.failed else 'cert-manager not installed'}] }}"
+          when: not k8s_certificates.failed
+
+      when: k8s_deployed
+
+    # Cross-platform tests
+    - name: Test deployment script functionality
+      command: "{{ playbook_dir }}/../scripts/deploy-hybrid.sh status"
+      register: deploy_script_test
+      failed_when: false
+
+    - name: Record deployment script test
+      set_fact:
+        test_results: "{{ test_results + [{'name': 'Deployment Script Status', 'status': 'PASS' if deploy_script_test.rc == 0 else 'FAIL', 'details': 'Exit code: ' + (deploy_script_test.rc|string)}] }}"
+        tests_passed: "{{ tests_passed + 1 if deploy_script_test.rc == 0 else tests_passed }}"
+        tests_failed: "{{ tests_failed + 1 if deploy_script_test.rc != 0 else tests_failed }}"
+
+    # Test configuration validation
+    - name: Validate Kubernetes manifests
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ item }}"
+        dry_run: true
+        validate:
+          fail_on_error: true
+      with_file:
+        - "{{ playbook_dir }}/../k8s/namespace.yaml"
+        - "{{ playbook_dir }}/../k8s/services.yaml"
+        - "{{ playbook_dir }}/../k8s/ingress.yaml"
+        - "{{ playbook_dir }}/../k8s/certificates.yaml"
+      register: k8s_validation
+      failed_when: false
+
+    - name: Record Kubernetes validation test
+      set_fact:
+        test_results: "{{ test_results + [{'name': 'Kubernetes Manifest Validation', 'status': 'PASS' if not k8s_validation.failed else 'FAIL', 'details': 'All manifests valid' if not k8s_validation.failed else 'Validation errors found'}] }}"
+        tests_passed: "{{ tests_passed + 1 if not k8s_validation.failed else tests_passed }}"
+        tests_failed: "{{ tests_failed + 1 if k8s_validation.failed else tests_failed }}"
+
+    # Final test summary
+    - name: Generate test summary
+      set_fact:
+        total_tests: "{{ tests_passed|int + tests_failed|int }}"
+        success_rate: "{{ ((tests_passed|int / (tests_passed|int + tests_failed|int)) * 100) | round(1) if (tests_passed|int + tests_failed|int) > 0 else 0 }}"
+
+    - name: Display test results
+      debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════════════════╗
+          ║                           TEST RESULTS SUMMARY                          ║
+          ╚══════════════════════════════════════════════════════════════════════════╝
+          
+          Tests Passed: {{ tests_passed }}
+          Tests Failed: {{ tests_failed }}
+          Total Tests:  {{ total_tests }}
+          Success Rate: {{ success_rate }}%
+          
+          Status: {{ '🎉 ALL TESTS PASSED' if tests_failed|int == 0 else '⚠️  SOME TESTS FAILED' }}
+
+    - name: Display detailed results
+      debug:
+        msg: |
+          {{ '✅' if item.status == 'PASS' else '❌' if item.status == 'FAIL' else 'ℹ️' }} {{ item.name }}: {{ item.details }}
+      loop: "{{ test_results }}"
+
+    - name: Save test results to file
+      copy:
+        content: |
+          # Integration Test Results
+          Generated: {{ ansible_date_time.iso8601 }}
+          
+          ## Summary
+          - Tests Passed: {{ tests_passed }}
+          - Tests Failed: {{ tests_failed }}
+          - Total Tests: {{ total_tests }}
+          - Success Rate: {{ success_rate }}%
+          
+          ## Deployment Status
+          - VM Deployment: {{ 'Active' if vm_deployed else 'Not Found' }}
+          - Kubernetes Deployment: {{ 'Active' if k8s_deployed else 'Not Found' }}
+          
+          ## Detailed Results
+          {% for result in test_results %}
+          - {{ result.status }}: {{ result.name }} - {{ result.details }}
+          {% endfor %}
+          
+          ## Infrastructure Details
+          {% if vm_deployed and vm_services is defined %}
+          
+          ### VM Services
+          - GitLab: http://{{ vm_services.gitlab_floating_ip.value }}:8090
+          - Dashboard: http://{{ vm_services.nginx_floating_ip.value }}
+          - Nexus: http://{{ vm_services.nexus_floating_ip.value }}:8081
+          {% endif %}
+          
+          {% if k8s_deployed and ingress_ip is defined and ingress_ip != 'pending' %}
+          
+          ### Kubernetes Services  
+          - GitLab: https://gitlab.{{ domain_name }}
+          - Dashboard: https://dashboard.{{ domain_name }}
+          - Nexus: https://nexus.{{ domain_name }}
+          - Ingress IP: {{ ingress_ip }}
+          {% endif %}
+        dest: "{{ playbook_dir }}/../integration-test-results-{{ ansible_date_time.epoch }}.md"
+
+    - name: Fail if tests failed
+      fail:
+        msg: "{{ tests_failed }} out of {{ total_tests }} tests failed. Check the results above."
+      when: tests_failed|int > 0

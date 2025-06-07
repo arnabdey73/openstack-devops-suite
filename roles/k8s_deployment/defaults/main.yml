@@ -1,0 +1,77 @@
+---
+# Default variables for Kubernetes deployment role
+
+# Kubernetes Configuration
+kubernetes_namespace: "devops-suite"
+kubeconfig_path: "~/.kube/config"
+
+# Domain and SSL Configuration
+domain_name: "yourdomain.com"
+ingress_class: "nginx"
+enable_ssl_certificates: true
+letsencrypt_email: ""
+
+# Ingress Controller Configuration
+ingress_controller:
+  repository: "https://kubernetes.github.io/ingress-nginx"
+  chart: "ingress-nginx"
+  version: "4.8.3"
+  namespace: "ingress-nginx"
+  values:
+    controller:
+      service:
+        type: "LoadBalancer"
+        annotations:
+          service.beta.kubernetes.io/openstack-internal-load-balancer: "true"
+      config:
+        proxy-body-size: "500m"
+        proxy-read-timeout: "600"
+        proxy-send-timeout: "600"
+
+# Cert-manager Configuration
+cert_manager:
+  repository: "https://charts.jetstack.io"
+  chart: "cert-manager"
+  version: "v1.13.2"
+  namespace: "cert-manager"
+  values:
+    installCRDs: true
+    global:
+      leaderElection:
+        namespace: "cert-manager"
+
+# Service Configuration
+services:
+  gitlab:
+    subdomain: "gitlab"
+    port: 80
+    ssl_port: 443
+  rancher:
+    subdomain: "rancher"
+    port: 80
+    ssl_port: 443
+  keycloak:
+    subdomain: "keycloak"
+    port: 8080
+    ssl_port: 8443
+  nexus:
+    subdomain: "nexus"
+    port: 8081
+  dashboard:
+    subdomain: "dashboard"
+    port: 80
+    ssl_port: 443
+  docker_registry:
+    subdomain: "docker"
+    port: 8082
+
+# Resource Limits
+resource_limits:
+  default_memory: "512Mi"
+  default_cpu: "500m"
+  
+# Timeout settings
+timeouts:
+  deployment_ready: "300s"
+  certificate_ready: "180s"
+  ingress_ready: "300s"

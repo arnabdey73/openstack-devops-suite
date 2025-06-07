@@ -1,0 +1,61 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@yourdomain.com  # Replace with your email
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@yourdomain.com  # Replace with your email
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+# Certificate for main services
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: devops-suite-cert
+  namespace: devops-suite
+spec:
+  secretName: devops-suite-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - gitlab.yourdomain.com
+  - rancher.yourdomain.com
+  - keycloak.yourdomain.com
+  - nexus.yourdomain.com
+  - dashboard.yourdomain.com
+---
+# Certificate for Nexus Docker registry
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nexus-docker-cert
+  namespace: devops-suite
+spec:
+  secretName: nexus-docker-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - docker.yourdomain.com
