@@ -1,0 +1,9 @@
+Flask==2.3.3
+Flask-Limiter==3.5.0
+Flask-WTF==1.2.1
+PyYAML==6.0.1
+requests==2.31.0
+Jinja2==3.1.2
+python-gitlab==4.2.0
+cryptography==41.0.7
+WTForms==3.1.0

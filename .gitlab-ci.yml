@@ -191,6 +191,50 @@ deploy:services:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+# Build onboarding portal container
+build:onboarding-portal:
+  stage: configure
+  image: docker:24.0
+  services:
+    - docker:24.0-dind
+  script:
+    - |
+      # Extract registry URL
+      DOCKER_REGISTRY=$(terraform output -json | jq -r '.docker_registry_k8s_url.value // "docker.yourdomain.com"' | sed 's/https:\/\///')
+      
+      # Build onboarding portal container
+      cd $CI_PROJECT_DIR/scripts
+      docker build -t $DOCKER_REGISTRY/onboarding-portal:$CI_COMMIT_SHORT_SHA -f Dockerfile .
+      docker tag $DOCKER_REGISTRY/onboarding-portal:$CI_COMMIT_SHORT_SHA $DOCKER_REGISTRY/onboarding-portal:latest
+      
+      # Login to registry and push
+      echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
+      docker push $DOCKER_REGISTRY/onboarding-portal:$CI_COMMIT_SHORT_SHA
+      docker push $DOCKER_REGISTRY/onboarding-portal:latest
+  dependencies:
+    - deploy:proxy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $ENABLE_KUBERNETES == "true"
+
+# Deploy onboarding portal to Kubernetes
+deploy:onboarding-portal:
+  stage: configure
+  image: bitnami/kubectl:latest
+  script:
+    - |
+      # Extract registry URL
+      DOCKER_REGISTRY=$(terraform output -json | jq -r '.docker_registry_k8s_url.value // "docker.yourdomain.com"' | sed 's/https:\/\///')
+      
+      # Update the onboarding portal manifest with the current image
+      sed -e "s|\${DOCKER_REGISTRY}|$DOCKER_REGISTRY|g" k8s/onboarding-portal.yaml | kubectl apply -f -
+      
+      # Wait for deployment
+      kubectl -n devops-suite rollout status deployment/onboarding-portal --timeout=300s
+  dependencies:
+    - build:onboarding-portal
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $ENABLE_KUBERNETES == "true"
+
 # Deploy NGINX proxy and dashboard
 deploy:proxy:
   stage: configure
@@ -215,6 +259,7 @@ verify:services:
       # Extract service IPs from terraform outputs
       GITLAB_IP=$(cat terraform-outputs.json | jq -r '.gitlab_ip.value')
       NGINX_IP=$(cat terraform-outputs.json | jq -r '.nginx_ip.value')
+      DOMAIN_NAME=${DOMAIN_NAME:-"yourdomain.com"}
       
       # Verify services are responding
       echo "Verifying GitLab..."
@@ -222,6 +267,17 @@ verify:services:
       
       echo "Verifying Dashboard..."
       curl -f -s "http://${NGINX_IP}" > /dev/null || exit 1
+      
+      # Verify onboarding portal if Kubernetes is enabled
+      if [[ "$ENABLE_KUBERNETES" == "true" ]]; then
+        echo "Verifying Onboarding Portal..."
+        if kubectl get svc -n devops-suite onboarding-portal &> /dev/null; then
+          INGRESS_IP=$(kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          if [ -n "$INGRESS_IP" ]; then
+            curl -f -s -H "Host: onboarding.$DOMAIN_NAME" "http://${INGRESS_IP}/api/templates" > /dev/null || echo "Onboarding portal not ready yet"
+          fi
+        fi
+      fi
       
       echo "All services are responding!"
   dependencies:

@@ -222,6 +222,24 @@
                 </div>
             </div>
             {% endif %}
+            
+            <!-- 1-Click Onboarding Portal -->
+            {% if service_urls.onboarding is defined %}
+            <div class="tool-card">
+                <div class="tool-header" style="background-color: #6e48aa;">
+                    <h2>1-Click Onboarding</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>Application Onboarding</h3>
+                    <p>Deploy your applications to the DevOps Suite with a Vercel-like onboarding experience.</p>
+                    <a href="{{ service_urls.onboarding }}" class="btn">Launch Portal</a>
+                    <div class="service-stats">
+                        <span class="status-badge status-online">Online</span>
+                        <span>Kubernetes</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <div class="footer">

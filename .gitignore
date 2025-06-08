@@ -5,7 +5,6 @@
 # =============================================================================
 
 # Documentation reports and results (as requested)
-docs/reports/
 results/
 
 # Terraform state and sensitive files

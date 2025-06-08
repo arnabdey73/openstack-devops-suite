@@ -1,0 +1,24 @@
+<!-- Onboarding Portal Card -->
+<div class="col-md-6 col-xl-4 mb-4">
+    <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+                <div class="feature-icon bg-primary bg-gradient text-white me-3">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h5 class="card-title mb-0">1-Click Onboarding</h5>
+                <span class="ms-auto status-indicator" data-service="onboarding"></span>
+            </div>
+            <p class="card-text">Deploy applications to your DevOps Suite with a Vercel-like 1-click onboarding experience.</p>
+            <a href="{{ service_urls.onboarding | default('https://onboarding.' + base_domain) }}" target="_blank" class="btn btn-primary w-100">
+                <i class="fas fa-external-link-alt me-2"></i>Launch Onboarding
+            </a>
+        </div>
+        <div class="card-footer bg-transparent border-0">
+            <div class="d-flex align-items-center small text-muted">
+                <i class="fas fa-magic me-1"></i>
+                <div>Automated application deployment</div>
+            </div>
+        </div>
+    </div>
+</div>

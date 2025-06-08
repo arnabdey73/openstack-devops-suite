@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1-Click Application Onboarding - OpenStack DevOps Suite</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-rocket me-2"></i>
+                GitLab-Centered DevOps Suite
+            </a>
+            <div class="d-flex">
+                <a href="https://gitlab.yourdomain.com" target="_blank" class="btn btn-outline-light me-2">
+                    <i class="fab fa-gitlab me-1"></i>
+                    GitLab
+                </a>
+                <a href="https://dashboard.yourdomain.com" target="_blank" class="btn btn-outline-light">
+                    <i class="fas fa-tachometer-alt me-1"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h1 class="card-title">
+                            <i class="fas fa-magic text-primary me-2"></i>
+                            1-Click Application Onboarding
+                        </h1>
+                        <p class="card-text lead">Deploy your application to our GitLab-centered DevOps Suite in minutes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Step 1: Start -->
+            <div class="col-12">
+                <div class="card shadow-sm mb-4" id="step1Card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <span class="badge bg-white text-primary me-2">1</span>
+                            Select Application Template
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="templatesContainer">
+                            <!-- Templates will be loaded dynamically -->
+                            <div class="col-12 text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Configure -->
+            <div class="col-12">
+                <div class="card shadow-sm mb-4" id="step2Card" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <span class="badge bg-white text-primary me-2">2</span>
+                            Configure Application
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="configForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="appName" class="form-label">Application Name</label>
+                                        <input type="text" class="form-control" id="appName" name="appName" required 
+                                               placeholder="my-awesome-app">
+                                        <small class="text-muted">Lowercase alphanumeric with dashes only</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description" name="description" rows="2" required 
+                                                  placeholder="Brief description of your application"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="teamEmail" class="form-label">Team Email</label>
+                                        <input type="email" class="form-control" id="teamEmail" name="teamEmail" required 
+                                               placeholder="team@yourdomain.com">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="framework" class="form-label">Framework</label>
+                                        <select class="form-select" id="framework" name="framework" required>
+                                            <!-- Frameworks will be loaded based on selected template -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="port" class="form-label">Application Port</label>
+                                        <input type="number" class="form-control" id="port" name="port" value="8080">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="replicas" class="form-label">Initial Replicas</label>
+                                        <input type="number" class="form-control" id="replicas" name="replicas" value="3" min="1" max="10">
+                                    </div>
+                                </div>
+                                <div class="col-12 text-center mt-3">
+                                    <button type="button" class="btn btn-secondary me-2" id="backToStep1Button">
+                                        <i class="fas fa-arrow-left me-1"></i>
+                                        Back
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="continueToStep3Button">
+                                        Continue
+                                        <i class="fas fa-arrow-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Resources -->
+            <div class="col-12">
+                <div class="card shadow-sm mb-4" id="step3Card" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <span class="badge bg-white text-primary me-2">3</span>
+                            Resource Configuration
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="resourcesForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="memoryRequest" class="form-label">Memory Request</label>
+                                        <select class="form-select" id="memoryRequest" name="memoryRequest">
+                                            <option value="128Mi">128Mi</option>
+                                            <option value="256Mi" selected>256Mi</option>
+                                            <option value="512Mi">512Mi</option>
+                                            <option value="1Gi">1Gi</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memoryLimit" class="form-label">Memory Limit</label>
+                                        <select class="form-select" id="memoryLimit" name="memoryLimit">
+                                            <option value="256Mi">256Mi</option>
+                                            <option value="512Mi" selected>512Mi</option>
+                                            <option value="1Gi">1Gi</option>
+                                            <option value="2Gi">2Gi</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cpuRequest" class="form-label">CPU Request</label>
+                                        <select class="form-select" id="cpuRequest" name="cpuRequest">
+                                            <option value="50m">50m</option>
+                                            <option value="100m" selected>100m</option>
+                                            <option value="200m">200m</option>
+                                            <option value="500m">500m</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="cpuLimit" class="form-label">CPU Limit</label>
+                                        <select class="form-select" id="cpuLimit" name="cpuLimit">
+                                            <option value="100m">100m</option>
+                                            <option value="200m">200m</option>
+                                            <option value="500m" selected>500m</option>
+                                            <option value="1000m">1000m (1 CPU)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12 text-center mt-3">
+                                    <button type="button" class="btn btn-secondary me-2" id="backToStep2Button">
+                                        <i class="fas fa-arrow-left me-1"></i>
+                                        Back
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="deployButton">
+                                        <i class="fas fa-rocket me-1"></i>
+                                        Deploy Application
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Deployment -->
+            <div class="col-12">
+                <div class="card shadow-sm mb-4" id="step4Card" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">
+                            <span class="badge bg-white text-success me-2">4</span>
+                            Deployment Status
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="deploymentSpinner">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Creating your application...</p>
+                            </div>
+                        </div>
+                        <div id="deploymentSuccess" style="display: none;">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Your application has been successfully deployed!
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">GitLab Project</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <a href="#" class="btn btn-primary" id="projectURL" target="_blank">
+                                            <i class="fab fa-gitlab me-2"></i>
+                                            Open GitLab Project
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Development Environment</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <a href="#" class="btn btn-outline-primary" id="devURL" target="_blank">
+                                                    <i class="fas fa-globe me-2"></i>
+                                                    Open Development URL
+                                                </a>
+                                                <small class="text-muted">Available after first commit/pipeline run</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Production Environment</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <a href="#" class="btn btn-outline-primary" id="prodURL" target="_blank">
+                                                    <i class="fas fa-globe me-2"></i>
+                                                    Open Production URL
+                                                </a>
+                                                <small class="text-muted">Available after manual promotion to production</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-4">
+                                <button class="btn btn-lg btn-success" id="startOverButton">
+                                    <i class="fas fa-plus-circle me-2"></i>
+                                    Onboard Another Application
+                                </button>
+                            </div>
+                        </div>
+                        <div id="deploymentError" style="display: none;">
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                <span id="errorMessage">An error occurred during deployment.</span>
+                            </div>
+                            <div class="text-center mt-3">
+                                <button class="btn btn-primary" id="retryButton">
+                                    <i class="fas fa-redo me-2"></i>
+                                    Retry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="mb-0">
+                <small>GitLab-Centered DevOps Suite &copy; <script>document.write(new Date().getFullYear())</script></small>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Modal for checking application status -->
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statusModalLabel">Check Application Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="statusForm">
+                        <div class="mb-3">
+                            <label for="appNameStatus" class="form-label">Application Name</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="appNameStatus" placeholder="Enter your application name">
+                                <button class="btn btn-primary" type="button" id="checkStatusBtn">
+                                    <i class="fas fa-search me-1"></i>
+                                    Check
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="statusResult" style="display: none;">
+                        <hr>
+                        <h5>Status for: <span id="statusAppName"></span></h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Environment</th>
+                                        <th>Status</th>
+                                        <th>Last Deployment</th>
+                                        <th>URL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statusTableBody">
+                                    <!-- Status data will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="statusError" class="alert alert-danger mt-3" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

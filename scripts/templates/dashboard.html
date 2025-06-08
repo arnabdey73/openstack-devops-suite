@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - DevOps Suite</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .app-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .app-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-available {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-stopped {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status-unknown {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            border-radius: 8px;
+            margin: 2px 0;
+        }
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white !important;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .welcome-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 px-0 sidebar">
+                <div class="p-3">
+                    <h4 class="text-white mb-4">
+                        <i class="fas fa-rocket me-2"></i>DevOps Suite
+                    </h4>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-plus-circle me-2"></i>New Application
+                        </a>
+                        <hr class="text-white">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <div class="p-4">
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- Welcome Header -->
+                    <div class="welcome-header">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h1 class="mb-1">Welcome back, {{ username }}!</h1>
+                                <p class="mb-0 opacity-75">Manage your onboarded applications and monitor their status</p>
+                            </div>
+                            <div class="col-auto">
+                                <a href="{{ url_for('index') }}" class="btn btn-light btn-lg">
+                                    <i class="fas fa-plus me-2"></i>Onboard New App
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary mb-1">{{ applications|length }}</h3>
+                                    <p class="text-muted mb-0">Total Applications</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success mb-1">
+                                        {{ applications|selectattr('environments')|selectattr('environments.available')|list|length }}
+                                    </h3>
+                                    <p class="text-muted mb-0">Running Apps</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning mb-1">
+                                        {{ applications|selectattr('environments')|selectattr('environments.stopped')|list|length }}
+                                    </h3>
+                                    <p class="text-muted mb-0">Stopped Apps</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h3 class="text-info mb-1">
+                                        {{ (applications|selectattr('environments')|selectattr('environments.development')|list|length) + 
+                                           (applications|selectattr('environments')|selectattr('environments.production')|list|length) }}
+                                    </h3>
+                                    <p class="text-muted mb-0">Total Environments</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Applications Grid -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3>Your Applications</h3>
+                                <div class="input-group" style="max-width: 300px;">
+                                    <input type="text" class="form-control" placeholder="Search applications..." id="searchInput">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if applications %}
+                        <div class="row" id="applicationsGrid">
+                            {% for app in applications %}
+                                <div class="col-md-6 col-lg-4 mb-4 app-item" data-name="{{ app.name|lower }}">
+                                    <div class="card app-card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <h5 class="card-title mb-0">
+                                                    <i class="fas fa-cube me-2 text-primary"></i>
+                                                    {{ app.name }}
+                                                </h5>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                                            type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item" href="{{ app.web_url }}" target="_blank">
+                                                            <i class="fab fa-gitlab me-2"></i>View in GitLab
+                                                        </a></li>
+                                                        <li><a class="dropdown-item" href="#" onclick="editApp('{{ app.name }}')">
+                                                            <i class="fas fa-edit me-2"></i>Edit
+                                                        </a></li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteApp('{{ app.name }}')">
+                                                            <i class="fas fa-trash me-2"></i>Delete
+                                                        </a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            
+                                            <p class="card-text text-muted small mb-3">{{ app.description or 'No description provided' }}</p>
+                                            
+                                            <!-- Environment Status -->
+                                            <div class="mb-3">
+                                                <small class="text-muted d-block mb-2">Environments:</small>
+                                                {% if app.environments %}
+                                                    {% for env_name, env_info in app.environments.items() %}
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <span class="small">{{ env_name.title() }}:</span>
+                                                            {% if env_info.status == 'available' %}
+                                                                <span class="status-badge status-available">
+                                                                    <i class="fas fa-check-circle me-1"></i>Running
+                                                                </span>
+                                                            {% elif env_info.status == 'stopped' %}
+                                                                <span class="status-badge status-stopped">
+                                                                    <i class="fas fa-times-circle me-1"></i>Stopped
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="status-badge status-unknown">
+                                                                    <i class="fas fa-question-circle me-1"></i>Unknown
+                                                                </span>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% if env_info.url %}
+                                                            <div class="mb-1">
+                                                                <a href="{{ env_info.url }}" target="_blank" 
+                                                                   class="btn btn-sm btn-outline-primary">
+                                                                    <i class="fas fa-external-link-alt me-1"></i>Open {{ env_name.title() }}
+                                                                </a>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="text-muted small">No environments deployed</span>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="mt-auto">
+                                                <small class="text-muted">
+                                                    Created: {{ app.created_at[:10] }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+                            <h4>No applications onboarded yet</h4>
+                            <p class="text-muted mb-4">Get started by onboarding your first application to the DevOps pipeline.</p>
+                            <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus me-2"></i>Onboard Your First App
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const appItems = document.querySelectorAll('.app-item');
+            
+            appItems.forEach(item => {
+                const appName = item.dataset.name;
+                if (appName.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Edit application function
+        function editApp(appName) {
+            // TODO: Implement edit functionality
+            alert('Edit functionality coming soon for: ' + appName);
+        }
+
+        // Delete application function
+        function deleteApp(appName) {
+            if (confirm('Are you sure you want to delete the application "' + appName + '"? This action cannot be undone.')) {
+                fetch(`/api/applications/${appName}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        alert('Error deleting application: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting application: ' + error);
+                });
+            }
+        }
+
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            // Subtle reload of status information without full page refresh
+            // TODO: Implement AJAX status updates
+        }, 30000);
+    </script>
+</body>
+</html>

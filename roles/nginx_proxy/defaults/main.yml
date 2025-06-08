@@ -87,3 +87,4 @@ service_urls:
   rancher: "{{ rancher_url }}"
   keycloak: "{{ keycloak_url }}"
   nexus: "{{ nexus_url }}"
+  onboarding: "https://onboarding.{{ nginx_domain | default('yourdomain.com') }}"

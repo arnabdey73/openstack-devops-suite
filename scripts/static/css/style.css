@@ -1,0 +1,173 @@
+/* 1-Click Application Onboarding Portal Styles */
+
+:root {
+    --primary-color: #fc6d26;  /* GitLab orange */
+    --secondary-color: #2684ff; /* Azure blue */
+    --dark-color: #292961; /* GitLab dark blue */
+    --success-color: #1aaa55; /* GitLab green */
+    --warning-color: #f1c40f;
+    --danger-color: #db3b21;
+    --light-color: #f8f9fa;
+}
+
+/* Override Bootstrap's primary colors with GitLab's colors */
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #e24329;
+    border-color: #e24329;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.navbar-dark {
+    background-color: var(--dark-color) !important;
+}
+
+footer {
+    margin-top: auto;
+}
+
+/* Template card styles */
+.template-card {
+    border: 2px solid transparent;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    height: 100%;
+}
+
+.template-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.template-card.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.template-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* Step cards */
+.card {
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Deployment progress */
+.deployment-step {
+    padding: 1rem;
+    border-left: 3px solid #dee2e6;
+    position: relative;
+}
+
+.deployment-step.active {
+    border-left: 3px solid var(--primary-color);
+}
+
+.deployment-step.completed {
+    border-left: 3px solid var(--success-color);
+}
+
+.deployment-step::before {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 1.5rem;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #dee2e6;
+}
+
+.deployment-step.active::before {
+    background-color: var(--primary-color);
+}
+
+.deployment-step.completed::before {
+    background-color: var(--success-color);
+}
+
+/* Resource configuration slider styles */
+.slider-container {
+    padding: 0 10px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 5px;
+    background: #eee;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+}
