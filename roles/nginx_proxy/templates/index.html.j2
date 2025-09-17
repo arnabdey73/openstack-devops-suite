@@ -57,7 +57,8 @@
             padding: 20px;
             color: white;
         }
-        .gitlab { background-color: #fc6d26; }
+        .gitea { background-color: #609926; }
+        .jenkins { background-color: #335061; }
         .rancher { background-color: #0075a8; }
         .keycloak { background-color: #4a4a4a; }
         .nexus { background-color: #1a7b8f; }
@@ -137,18 +138,35 @@
             </div>
             {% endif %}
 
-            {% if 'gitlab_servers' in groups %}
+            {% if 'gitea_servers' in groups %}
             <div class="tool-card">
-                <div class="tool-header gitlab">
-                    <h2>GitLab</h2>
+                <div class="tool-header gitea">
+                    <h2>Gitea</h2>
                 </div>
                 <div class="tool-content">
-                    <h3>Git SCM & DevOps Platform</h3>
-                    <p>Modern Git workflows, integrated CI/CD pipelines, and container registry with GitLab Community Edition.</p>
-                    <a href="/gitlab/" class="btn">Access GitLab</a>
+                    <h3>Self-Hosted Git Service</h3>
+                    <p>Lightweight, fast, and feature-rich self-hosted Git service with intuitive web interface and API.</p>
+                    <a href="/gitea/" class="btn">Access Gitea</a>
                     <div class="service-stats">
                         <span class="status-badge status-online">Online</span>
-                        <span>{{ hostvars[groups['gitlab_servers'][0]]['ansible_host'] }}</span>
+                        <span>{{ hostvars[groups['gitea_servers'][0]]['ansible_host'] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if 'jenkins_servers' in groups %}
+            <div class="tool-card">
+                <div class="tool-header jenkins">
+                    <h2>Jenkins</h2>
+                </div>
+                <div class="tool-content">
+                    <h3>CI/CD Automation Server</h3>
+                    <p>Industry-leading automation server for building, testing, and deploying applications with extensive plugin ecosystem.</p>
+                    <a href="/jenkins/" class="btn">Access Jenkins</a>
+                    <div class="service-stats">
+                        <span class="status-badge status-online">Online</span>
+                        <span>{{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}</span>
                     </div>
                 </div>
             </div>

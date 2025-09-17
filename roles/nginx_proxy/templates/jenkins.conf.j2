@@ -1,0 +1,193 @@
+# Jenkins CI/CD Server Configuration
+# Optimized for CI/CD operations, build artifacts, and WebSocket connections
+
+upstream jenkins_servers {
+    server {{ hostvars[groups['jenkins_servers'][0]]['ansible_host'] }}:8080 max_fails=3 fail_timeout=30s;
+    {% if groups['jenkins_servers']|length > 1 %}
+    {% for host in groups['jenkins_servers'][1:] %}
+    server {{ hostvars[host]['ansible_host'] }}:8080 max_fails=3 fail_timeout=30s;
+    {% endfor %}
+    {% endif %}
+    keepalive 32;
+}
+
+# Jenkins HTTP Server
+server {
+    listen 80;
+    server_name jenkins.{{ nginx_domain }};
+
+    {% if nginx_ssl_enabled %}
+    # Redirect to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl{% if nginx_http2_enabled %} http2{% endif %};
+    server_name jenkins.{{ nginx_domain }};
+
+    # SSL Configuration
+    ssl_certificate {{ nginx_ssl_cert }};
+    ssl_certificate_key {{ nginx_ssl_key }};
+    ssl_protocols {{ nginx_ssl_protocols }};
+    ssl_ciphers {{ nginx_ssl_ciphers }};
+    ssl_prefer_server_ciphers {{ nginx_ssl_prefer_server_ciphers }};
+    
+    {% if nginx_hsts_enabled %}
+    add_header Strict-Transport-Security "max-age={{ nginx_hsts_max_age }}; includeSubDomains" always;
+    {% endif %}
+    {% endif %}
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Client settings for large builds and artifacts
+    client_max_body_size {{ jenkins_max_body_size }};
+    client_body_timeout 300s;
+    client_header_timeout 60s;
+
+    # Proxy settings optimized for Jenkins
+    proxy_connect_timeout 10s;
+    proxy_send_timeout {{ nginx_proxy_timeout }}s;
+    proxy_read_timeout {{ nginx_proxy_timeout }}s;
+    proxy_buffering off;
+    proxy_request_buffering off;
+
+    # Common proxy headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+
+    # Jenkins requires this for proper CSRF protection
+    proxy_set_header X-Forwarded-Ssl on;
+
+    # Main Jenkins location
+    location / {
+        {% if rate_limit_enabled %}
+        limit_req zone=general burst=50 nodelay;
+        {% endif %}
+
+        # Handle WebSocket connections for build logs and terminal
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        proxy_pass http://jenkins_servers;
+
+        # Jenkins CLI endpoint
+        location /cli {
+            # No rate limiting for CLI operations
+            limit_req off;
+            
+            # Extended timeouts for CLI operations
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+            
+            proxy_pass http://jenkins_servers;
+        }
+
+        # Jenkins API endpoints
+        location ~ ^/api/ {
+            {% if rate_limit_enabled %}
+            limit_req zone=api burst=100 nodelay;
+            {% endif %}
+            
+            # CORS headers for API access
+            add_header Access-Control-Allow-Origin "*" always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Jenkins-Crumb" always;
+            
+            if ($request_method = OPTIONS) {
+                return 204;
+            }
+            
+            # Jenkins-specific headers
+            proxy_set_header Jenkins-Crumb $http_jenkins_crumb;
+            
+            proxy_pass http://jenkins_servers;
+        }
+
+        # Webhook endpoints (from Gitea and other SCMs)
+        location ~ ^/(git|github|bitbucket|gitlab)-webhook/ {
+            # No rate limiting for webhooks
+            limit_req off;
+            
+            # Log webhook calls for debugging
+            access_log {{ nginx_access_log }} combined;
+            
+            proxy_pass http://jenkins_servers;
+        }
+
+        # Build artifacts and workspace downloads
+        location ~ ^/job/.*/ws/ {
+            # Higher limits for workspace downloads
+            client_max_body_size 5g;
+            proxy_read_timeout 600s;
+            
+            # Minimal rate limiting for downloads
+            {% if rate_limit_enabled %}
+            limit_req zone=general burst=20 nodelay;
+            {% endif %}
+            
+            proxy_pass http://jenkins_servers;
+        }
+
+        # Console output and build logs
+        location ~ ^/job/.*/console {
+            # Real-time console output
+            proxy_buffering off;
+            proxy_cache off;
+            
+            # WebSocket support for live logs
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            
+            proxy_pass http://jenkins_servers;
+        }
+
+        # Blue Ocean interface
+        location /blue/ {
+            {% if rate_limit_enabled %}
+            limit_req zone=general burst=30 nodelay;
+            {% endif %}
+            
+            # WebSocket support for Blue Ocean
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            
+            proxy_pass http://jenkins_servers;
+        }
+    }
+
+    # Health check
+    location /login {
+        access_log off;
+        proxy_pass http://jenkins_servers;
+    }
+
+    # Static assets caching
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        proxy_pass http://jenkins_servers;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # Plugin resources
+    location /plugin/ {
+        proxy_pass http://jenkins_servers;
+        expires 1d;
+        add_header Cache-Control "public";
+    }
+
+    # Logging
+    access_log {{ nginx_access_log }} combined;
+    error_log {{ nginx_error_log }} warn;
+}

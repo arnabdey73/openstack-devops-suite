@@ -14,12 +14,12 @@ A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with 
 - 🏗️ Infrastructure as Code with Terraform (VMware OpenStack optimized)  
 - 🔧 **Jenkins CI/CD Server** - Modern automation and pipeline management
 - 🗃️ **Gitea Self-Hosted Git** - Lightweight, fast Git repository hosting
+- 🌐 **NGINX API Gateway** - Centralized routing, rate limiting, SSL termination, and load balancing
 - ☸️ Kubernetes orchestration with Rancher
 - 📦 Artifact and Docker registry with Nexus
 - 🔐 Centralized identity management with Keycloak
 - 💬 Messaging system with Kafka
 - 🧠 Cache store with Redis
-- 🌐 NGINX as reverse proxy and load balancer
 
 ### 📊 Enterprise Observability Stack
 
@@ -375,12 +375,12 @@ After deployment, access your services at:
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Dashboard** | `http://<nginx-ip>` | Central DevOps dashboard |
-| **Gitea** | `http://<gitea-ip>:3000` | Git SCM, Repository hosting |
-| **Jenkins** | `http://<jenkins-ip>:8080` | CI/CD, Pipeline automation |
-| **Nexus** | `http://<nexus-ip>:8081` | Artifact and package repository |
-| **Keycloak** | `http://<keycloak-ip>:8180` | Identity and access management |
-| **Rancher** | `http://<rancher-ip>:8443` | Kubernetes cluster management |
+| **Dashboard** | `http://<api-gateway>/` | Central DevOps dashboard |
+| **Gitea** | `http://<api-gateway>/gitea/` | Git SCM, Repository hosting |
+| **Jenkins** | `http://<api-gateway>/jenkins/` | CI/CD, Pipeline automation |
+| **Nexus** | `http://<api-gateway>/nexus/` | Artifact and package repository |
+| **Keycloak** | `http://<api-gateway>/keycloak/` | Identity and access management |
+| **Rancher** | `http://<api-gateway>/rancher/` | Kubernetes cluster management |
 
 ### Default Credentials
 
