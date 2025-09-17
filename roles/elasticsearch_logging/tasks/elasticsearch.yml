@@ -1,0 +1,62 @@
+---
+# Elasticsearch Installation and Configuration
+
+- name: Install Elasticsearch
+  apt:
+    name: elasticsearch
+    state: present
+  when: ansible_os_family == "Debian"
+  notify: restart elasticsearch
+
+- name: Create elasticsearch data and log directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ elasticsearch.user }}"
+    group: "{{ elasticsearch.group }}"
+    mode: '0755'
+  loop:
+    - "{{ elasticsearch.data_dir }}"
+    - "{{ elasticsearch.log_dir }}"
+
+- name: Configure Elasticsearch
+  template:
+    src: elasticsearch.yml.j2
+    dest: "{{ elasticsearch.config_dir }}/elasticsearch.yml"
+    owner: root
+    group: "{{ elasticsearch.group }}"
+    mode: '0660'
+  notify: restart elasticsearch
+
+- name: Configure Elasticsearch JVM settings
+  template:
+    src: jvm.options.j2
+    dest: "{{ elasticsearch.config_dir }}/jvm.options"
+    owner: root
+    group: "{{ elasticsearch.group }}"
+    mode: '0660'
+  notify: restart elasticsearch
+
+- name: Set vm.max_map_count for Elasticsearch
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+    state: present
+    reload: true
+
+- name: Enable and start Elasticsearch service
+  systemd:
+    name: elasticsearch
+    enabled: "{{ elk_services_enabled }}"
+    state: "{{ elk_services_state }}"
+    daemon_reload: true
+
+- name: Wait for Elasticsearch to be available
+  uri:
+    url: "http://localhost:{{ elasticsearch.port }}/_cluster/health"
+    method: GET
+    status_code: [200, 401]
+  register: elasticsearch_health
+  until: elasticsearch_health.status in [200, 401]
+  retries: 30
+  delay: 5

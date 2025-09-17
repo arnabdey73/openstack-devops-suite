@@ -1,0 +1,107 @@
+# Prometheus Configuration for DevOps Suite
+global:
+  scrape_interval: {{ prometheus.scrape_interval }}
+  evaluation_interval: {{ prometheus.evaluation_interval }}
+  external_labels:
+{% for label, value in prometheus.external_labels.items() %}
+    {{ label }}: {{ value }}
+{% endfor %}
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - localhost:{{ alertmanager.port }}
+
+# Rules configuration
+rule_files:
+{% if alert_rules.enabled %}
+  - "{{ alert_rules.rules_dir }}/*.yml"
+{% endif %}
+
+# Scrape configuration
+scrape_configs:
+{% for target in monitoring_targets %}
+  - job_name: '{{ target.job_name }}'
+{% if target.static_configs is defined %}
+    static_configs:
+{% for config in target.static_configs %}
+      - targets: {{ config.targets | to_json }}
+{% if config.labels is defined %}
+        labels:
+{% for label, value in config.labels.items() %}
+          {{ label }}: {{ value }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if target.metrics_path is defined %}
+    metrics_path: {{ target.metrics_path }}
+{% endif %}
+{% if target.scrape_interval is defined %}
+    scrape_interval: {{ target.scrape_interval }}
+{% endif %}
+{% if target.params is defined %}
+    params:
+{% for param, values in target.params.items() %}
+      {{ param }}: {{ values | to_json }}
+{% endfor %}
+{% endif %}
+{% if target.scheme is defined %}
+    scheme: {{ target.scheme }}
+{% endif %}
+{% if target.basic_auth is defined %}
+    basic_auth:
+      username: {{ target.basic_auth.username }}
+      password: {{ target.basic_auth.password }}
+{% endif %}
+{% if target.bearer_token is defined %}
+    bearer_token: {{ target.bearer_token }}
+{% endif %}
+
+{% endfor %}
+  # Blackbox exporter configuration for endpoint monitoring
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+{% for group in groups %}
+{% if group not in ['ungrouped', 'all'] %}
+{% for host in groups[group] %}
+        - http://{{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:{{ blackbox_exporter.port }}
+
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+{% for target in monitoring_targets %}
+{% if target.static_configs is defined %}
+{% for config in target.static_configs %}
+{% for host in config.targets %}
+        - {{ host }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance  
+      - target_label: __address__
+        replacement: localhost:{{ blackbox_exporter.port }}

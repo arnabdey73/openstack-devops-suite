@@ -1,0 +1,61 @@
+---
+# Node Exporter Installation and Configuration
+
+- name: Create node_exporter system user
+  user:
+    name: "{{ node_exporter.user }}"
+    system: true
+    shell: "/bin/false"
+    group: "{{ node_exporter.group }}"
+    createhome: false
+    state: present
+
+- name: Create node_exporter group
+  group:
+    name: "{{ node_exporter.group }}"
+    system: true
+    state: present
+
+- name: Download and install Node Exporter
+  unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter.version }}/node_exporter-{{ node_exporter.version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+    creates: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64"
+  register: node_exporter_download
+
+- name: Copy node_exporter binary
+  copy:
+    src: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+    dest: "/usr/local/bin/node_exporter"
+    mode: '0755'
+    owner: root
+    group: root
+    remote_src: true
+  when: node_exporter_download.changed
+
+- name: Create node_exporter systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart node_exporter
+
+- name: Enable and start node_exporter service
+  systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Configure firewall for Node Exporter
+  ufw:
+    rule: allow
+    port: "{{ node_exporter.port }}"
+    proto: tcp
+    comment: "Node Exporter metrics"
+  when: ansible_os_family == "Debian"

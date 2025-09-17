@@ -1,0 +1,31 @@
+---
+# HashiCorp Vault handlers
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: restart vault
+  systemd:
+    name: vault
+    state: restarted
+  become: yes
+
+- name: stop vault
+  systemd:
+    name: vault
+    state: stopped
+  become: yes
+
+- name: start vault
+  systemd:
+    name: vault
+    state: started
+  become: yes
+
+- name: reload vault
+  systemd:
+    name: vault
+    state: reloaded
+  become: yes

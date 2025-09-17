@@ -1,0 +1,355 @@
+---
+# CI/CD integration configuration for security scanning
+
+- name: Create GitLab CI integration scripts
+  template:
+    src: gitlab_ci_security.yml.j2
+    dest: /opt/zap/scripts/gitlab_ci_security.yml
+    owner: zap
+    group: zap
+    mode: '0644'
+  become: yes
+
+- name: Create Jenkins integration scripts
+  template:
+    src: jenkins_security_pipeline.groovy.j2
+    dest: /opt/zap/scripts/jenkins_security_pipeline.groovy
+    owner: zap
+    group: zap
+    mode: '0644'
+  become: yes
+
+- name: Create GitHub Actions workflow
+  template:
+    src: github_security_workflow.yml.j2
+    dest: /opt/zap/scripts/github_security_workflow.yml
+    owner: zap
+    group: zap
+    mode: '0644'
+  become: yes
+
+- name: Setup webhook endpoints for CI/CD triggers
+  copy:
+    content: |
+      #!/usr/bin/env python3
+      """
+      Security Scan Webhook Server
+      Receives webhook requests from CI/CD systems to trigger security scans
+      """
+      
+      import json
+      import subprocess
+      import logging
+      from http.server import HTTPServer, BaseHTTPRequestHandler
+      from urllib.parse import urlparse, parse_qs
+      import threading
+      import time
+      
+      # Configure logging
+      logging.basicConfig(
+          level=logging.INFO,
+          format='%(asctime)s - %(levelname)s - %(message)s',
+          handlers=[
+              logging.FileHandler('/var/log/zap/webhook.log'),
+              logging.StreamHandler()
+          ]
+      )
+      
+      class SecurityScanWebhookHandler(BaseHTTPRequestHandler):
+          def do_POST(self):
+              content_length = int(self.headers['Content-Length'])
+              post_data = self.rfile.read(content_length)
+              
+              try:
+                  payload = json.loads(post_data.decode('utf-8'))
+                  
+                  if self.path == '/scan/baseline':
+                      self.trigger_baseline_scan(payload)
+                  elif self.path == '/scan/full':
+                      self.trigger_full_scan(payload)
+                  elif self.path == '/scan/api':
+                      self.trigger_api_scan(payload)
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+                      return
+                  
+                  self.send_response(200)
+                  self.send_header('Content-type', 'application/json')
+                  self.end_headers()
+                  self.wfile.write(json.dumps({'status': 'triggered'}).encode())
+                  
+              except Exception as e:
+                  logging.error(f"Error processing webhook: {e}")
+                  self.send_response(500)
+                  self.end_headers()
+          
+          def trigger_baseline_scan(self, payload):
+              target_url = payload.get('target_url')
+              if target_url:
+                  logging.info(f"Triggering baseline scan for {target_url}")
+                  threading.Thread(
+                      target=self.run_scan,
+                      args=('/opt/zap/scripts/zap_baseline_scan.py', target_url)
+                  ).start()
+          
+          def trigger_full_scan(self, payload):
+              target_url = payload.get('target_url')
+              if target_url:
+                  logging.info(f"Triggering full scan for {target_url}")
+                  threading.Thread(
+                      target=self.run_scan,
+                      args=('/opt/zap/scripts/zap_full_scan.py', target_url)
+                  ).start()
+          
+          def trigger_api_scan(self, payload):
+              target_url = payload.get('target_url')
+              api_spec = payload.get('api_spec')
+              if target_url:
+                  logging.info(f"Triggering API scan for {target_url}")
+                  threading.Thread(
+                      target=self.run_api_scan,
+                      args=(target_url, api_spec)
+                  ).start()
+          
+          def run_scan(self, script_path, target_url):
+              try:
+                  result = subprocess.run(
+                      ['python3', script_path, '--target', target_url],
+                      capture_output=True,
+                      text=True,
+                      timeout=3600  # 1 hour timeout
+                  )
+                  logging.info(f"Scan completed with exit code: {result.returncode}")
+              except subprocess.TimeoutExpired:
+                  logging.error("Scan timed out")
+              except Exception as e:
+                  logging.error(f"Error running scan: {e}")
+          
+          def run_api_scan(self, target_url, api_spec):
+              try:
+                  cmd = ['python3', '/opt/zap/scripts/zap_api_scan.py', '--target', target_url]
+                  if api_spec:
+                      cmd.extend(['--spec', api_spec])
+                  
+                  result = subprocess.run(
+                      cmd,
+                      capture_output=True,
+                      text=True,
+                      timeout=3600
+                  )
+                  logging.info(f"API scan completed with exit code: {result.returncode}")
+              except subprocess.TimeoutExpired:
+                  logging.error("API scan timed out")
+              except Exception as e:
+                  logging.error(f"Error running API scan: {e}")
+      
+      if __name__ == '__main__':
+          server = HTTPServer(('0.0.0.0', 8888), SecurityScanWebhookHandler)
+          logging.info("Security scan webhook server starting on port 8888")
+          server.serve_forever()
+    dest: /opt/zap/scripts/webhook_server.py
+    owner: zap
+    group: zap
+    mode: '0755'
+  become: yes
+
+- name: Create webhook server systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=Security Scan Webhook Server
+      After=network.target zap.service
+      Requires=zap.service
+      
+      [Service]
+      Type=simple
+      User=zap
+      Group=zap
+      WorkingDirectory=/opt/zap
+      ExecStart=/usr/bin/python3 /opt/zap/scripts/webhook_server.py
+      Restart=always
+      RestartSec=10
+      
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/zap-webhook.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart zap-webhook
+  become: yes
+
+- name: Enable and start webhook service
+  systemd:
+    name: zap-webhook
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Create security scan result processing scripts
+  copy:
+    content: |
+      #!/usr/bin/env python3
+      """
+      Security Scan Result Processor
+      Processes ZAP scan results and integrates with CI/CD systems
+      """
+      
+      import json
+      import xml.etree.ElementTree as ET
+      import requests
+      import os
+      from datetime import datetime
+      
+      class SecurityReportProcessor:
+          def __init__(self, config_file='/opt/zap/config/integration_config.json'):
+              with open(config_file) as f:
+                  self.config = json.load(f)
+          
+          def process_zap_report(self, report_path):
+              """Process ZAP XML report and extract security findings"""
+              tree = ET.parse(report_path)
+              root = tree.getroot()
+              
+              findings = []
+              for site in root.findall('.//site'):
+                  site_name = site.get('name')
+                  
+                  for alert in site.findall('.//alertitem'):
+                      finding = {
+                          'site': site_name,
+                          'plugin_id': alert.find('pluginid').text,
+                          'alert': alert.find('alert').text,
+                          'risk': alert.find('riskdesc').text,
+                          'confidence': alert.find('confidence').text,
+                          'description': alert.find('desc').text,
+                          'solution': alert.find('solution').text,
+                          'reference': alert.find('reference').text,
+                          'instances': []
+                      }
+                      
+                      for instance in alert.findall('instances/instance'):
+                          finding['instances'].append({
+                              'uri': instance.find('uri').text,
+                              'method': instance.find('method').text,
+                              'param': instance.find('param').text if instance.find('param') is not None else '',
+                              'evidence': instance.find('evidence').text if instance.find('evidence') is not None else ''
+                          })
+                      
+                      findings.append(finding)
+              
+              return findings
+          
+          def send_to_gitlab(self, findings, project_id, merge_request_id=None):
+              """Send security findings to GitLab"""
+              gitlab_url = self.config['gitlab']['url']
+              token = self.config['gitlab']['token']
+              
+              headers = {'PRIVATE-TOKEN': token}
+              
+              # Create security report
+              report = {
+                  'version': '2.0',
+                  'vulnerabilities': []
+              }
+              
+              for finding in findings:
+                  if finding['risk'].startswith('High') or finding['risk'].startswith('Medium'):
+                      vulnerability = {
+                          'id': f"zap-{finding['plugin_id']}-{hash(finding['alert'])}",
+                          'name': finding['alert'],
+                          'description': finding['description'],
+                          'severity': self.map_zap_risk_to_gitlab(finding['risk']),
+                          'scanner': {
+                              'id': 'zap',
+                              'name': 'OWASP ZAP'
+                          },
+                          'location': {
+                              'file': finding['instances'][0]['uri'] if finding['instances'] else 'unknown',
+                              'line': 1
+                          },
+                          'identifiers': [
+                              {
+                                  'type': 'zap',
+                                  'name': f"ZAP-{finding['plugin_id']}",
+                                  'value': finding['plugin_id']
+                              }
+                          ]
+                      }
+                      report['vulnerabilities'].append(vulnerability)
+              
+              # Upload to GitLab
+              if merge_request_id:
+                  # Add as MR comment
+                  comment_data = {
+                      'body': self.format_security_comment(findings)
+                  }
+                  requests.post(
+                      f"{gitlab_url}/api/v4/projects/{project_id}/merge_requests/{merge_request_id}/notes",
+                      headers=headers,
+                      json=comment_data
+                  )
+              
+              return report
+          
+          def map_zap_risk_to_gitlab(self, zap_risk):
+              """Map ZAP risk levels to GitLab severity levels"""
+              mapping = {
+                  'High': 'Critical',
+                  'Medium': 'High',
+                  'Low': 'Medium',
+                  'Informational': 'Info'
+              }
+              return mapping.get(zap_risk.split()[0], 'Unknown')
+          
+          def format_security_comment(self, findings):
+              """Format security findings as GitLab comment"""
+              high_risk = [f for f in findings if f['risk'].startswith('High')]
+              medium_risk = [f for f in findings if f['risk'].startswith('Medium')]
+              
+              comment = "## 🔒 Security Scan Results\n\n"
+              
+              if high_risk:
+                  comment += f"### ⚠️ High Risk Issues ({len(high_risk)})\n"
+                  for finding in high_risk[:5]:  # Limit to 5 issues
+                      comment += f"- **{finding['alert']}** - {finding['description'][:100]}...\n"
+              
+              if medium_risk:
+                  comment += f"\n### ⚡ Medium Risk Issues ({len(medium_risk)})\n"
+                  for finding in medium_risk[:5]:  # Limit to 5 issues
+                      comment += f"- **{finding['alert']}** - {finding['description'][:100]}...\n"
+              
+              comment += f"\n📊 **Total Issues:** {len(findings)}"
+              comment += f"\n📅 **Scan Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+              
+              return comment
+      
+      if __name__ == '__main__':
+          import sys
+          if len(sys.argv) != 2:
+              print("Usage: python3 process_security_results.py <zap_report.xml>")
+              sys.exit(1)
+          
+          processor = SecurityReportProcessor()
+          findings = processor.process_zap_report(sys.argv[1])
+          
+          # Process findings based on configuration
+          print(f"Processed {len(findings)} security findings")
+    dest: /opt/zap/scripts/process_security_results.py
+    owner: zap
+    group: zap
+    mode: '0755'
+  become: yes
+
+- name: Create integration configuration template
+  template:
+    src: integration_config.json.j2
+    dest: /opt/zap/config/integration_config.json
+    owner: zap
+    group: zap
+    mode: '0600'
+  become: yes

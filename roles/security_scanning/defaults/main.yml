@@ -1,0 +1,143 @@
+---
+# Security scanning role defaults
+
+# OWASP ZAP configuration
+zap_version: "2.14.0"
+zap_host: "{{ ansible_default_ipv4.address }}"
+zap_port: 8080
+zap_api_key: "{{ zap_api_key | default('') }}"
+
+# Trivy configuration
+trivy_version: "0.48.1"
+
+# Scanning configuration
+zap_authenticated_scanning: true
+zap_automated_scanning: true
+security_automated_scanning: true
+
+# Scan policies
+zap_baseline_policy: "baseline_policy.policy"
+zap_full_scan_policy: "full_scan_policy.policy"
+zap_api_policy: "api_security_policy.policy"
+
+# Reporting configuration
+zap_report_formats:
+  - html
+  - json
+  - xml
+
+# Integration settings
+gitlab_security_integration: true
+jenkins_security_integration: false
+github_security_integration: false
+
+# Webhook server configuration
+webhook_server_enabled: true
+webhook_server_port: 8888
+
+# Security metrics
+security_metrics_enabled: true
+security_metrics_port: 8889
+
+# Scan scheduling
+baseline_scan_schedule:
+  minute: 0
+  hour: 2
+  day: "*"
+
+full_scan_schedule:
+  minute: 0
+  hour: 1
+  day: 0  # Weekly on Sunday
+
+api_scan_schedule:
+  minute: 30
+  hour: 3
+  day: "*"
+
+# Container scanning
+container_scanning_enabled: true
+container_registries:
+  - "docker.io"
+  - "quay.io"
+  - "gcr.io"
+
+# Compliance standards
+compliance_standards:
+  - "OWASP"
+  - "NIST"
+  - "CIS"
+  - "PCI-DSS"
+
+# Alert thresholds
+vulnerability_thresholds:
+  critical: 0
+  high: 5
+  medium: 20
+  low: 50
+
+# Notification settings
+security_notifications:
+  slack_enabled: false
+  email_enabled: true
+  webhook_enabled: true
+
+# Service-specific scanning configuration
+service_scan_configs:
+  gitlab:
+    enabled: true
+    url: "http://{{ groups['gitlab'][0] }}:8090"
+    authentication_required: true
+    scan_types: ["baseline", "api"]
+  
+  nexus:
+    enabled: true
+    url: "http://{{ groups['nexus'][0] }}:8081"
+    authentication_required: true
+    scan_types: ["baseline"]
+  
+  keycloak:
+    enabled: true
+    url: "http://{{ groups['keycloak'][0] }}:8180"
+    authentication_required: true
+    scan_types: ["baseline", "api"]
+  
+  rancher:
+    enabled: true
+    url: "https://{{ groups['rancher'][0] }}:8443"
+    authentication_required: true
+    scan_types: ["baseline"]
+  
+  grafana:
+    enabled: true
+    url: "http://{{ groups['prometheus'][0] }}:3000"
+    authentication_required: true
+    scan_types: ["baseline"]
+  
+  prometheus:
+    enabled: true
+    url: "http://{{ groups['prometheus'][0] }}:9090"
+    authentication_required: false
+    scan_types: ["baseline"]
+
+# Authentication credentials for scanning (encrypted with ansible-vault)
+scan_credentials:
+  gitlab:
+    username: "{{ gitlab_scan_username | default('root') }}"
+    password: "{{ gitlab_scan_password | default('') }}"
+  
+  nexus:
+    username: "{{ nexus_scan_username | default('admin') }}"
+    password: "{{ nexus_scan_password | default('') }}"
+  
+  keycloak:
+    username: "{{ keycloak_scan_username | default('admin') }}"
+    password: "{{ keycloak_scan_password | default('') }}"
+  
+  rancher:
+    username: "{{ rancher_scan_username | default('admin') }}"
+    password: "{{ rancher_scan_password | default('') }}"
+  
+  grafana:
+    username: "{{ grafana_scan_username | default('admin') }}"
+    password: "{{ grafana_scan_password | default('') }}"

@@ -1,0 +1,34 @@
+[Unit]
+Description=Kong API Gateway
+Documentation=https://docs.konghq.com/
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=forking
+User=kong
+Group=kong
+ExecStartPre=/usr/local/bin/kong migrations bootstrap -c /etc/kong/kong.conf || /usr/local/bin/kong migrations up -c /etc/kong/kong.conf
+ExecStart=/usr/local/bin/kong start -c /etc/kong/kong.conf
+ExecReload=/usr/local/bin/kong reload -c /etc/kong/kong.conf
+ExecStop=/usr/local/bin/kong stop -c /etc/kong/kong.conf
+PIDFile=/var/run/kong/nginx.pid
+TimeoutSec=60
+RemainAfterExit=yes
+KillMode=mixed
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kong
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kong /var/log/kong /var/run/kong /tmp
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

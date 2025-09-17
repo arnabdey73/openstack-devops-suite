@@ -1,0 +1,78 @@
+---
+# Blackbox Exporter Installation and Configuration
+
+- name: Create blackbox_exporter system user
+  user:
+    name: "{{ blackbox_exporter.user }}"
+    system: true
+    shell: "/bin/false"
+    group: "{{ blackbox_exporter.group }}"
+    createhome: false
+    state: present
+
+- name: Create blackbox_exporter group
+  group:
+    name: "{{ blackbox_exporter.group }}"
+    system: true
+    state: present
+
+- name: Create blackbox_exporter config directory
+  file:
+    path: /etc/blackbox_exporter
+    state: directory
+    owner: "{{ blackbox_exporter.user }}"
+    group: "{{ blackbox_exporter.group }}"
+    mode: '0755'
+
+- name: Download and install Blackbox Exporter
+  unarchive:
+    src: "https://github.com/prometheus/blackbox_exporter/releases/download/v{{ blackbox_exporter.version }}/blackbox_exporter-{{ blackbox_exporter.version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+    creates: "/tmp/blackbox_exporter-{{ blackbox_exporter.version }}.linux-amd64"
+  register: blackbox_download
+
+- name: Copy blackbox_exporter binary
+  copy:
+    src: "/tmp/blackbox_exporter-{{ blackbox_exporter.version }}.linux-amd64/blackbox_exporter"
+    dest: "/usr/local/bin/blackbox_exporter"
+    mode: '0755'
+    owner: root
+    group: root
+    remote_src: true
+  when: blackbox_download.changed
+
+- name: Generate blackbox_exporter configuration
+  template:
+    src: blackbox.yml.j2
+    dest: /etc/blackbox_exporter/blackbox.yml
+    owner: "{{ blackbox_exporter.user }}"
+    group: "{{ blackbox_exporter.group }}"
+    mode: '0644'
+  notify: restart blackbox_exporter
+
+- name: Create blackbox_exporter systemd service
+  template:
+    src: blackbox_exporter.service.j2
+    dest: /etc/systemd/system/blackbox_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart blackbox_exporter
+
+- name: Enable and start blackbox_exporter service
+  systemd:
+    name: blackbox_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Configure firewall for Blackbox Exporter
+  ufw:
+    rule: allow
+    port: "{{ blackbox_exporter.port }}"
+    proto: tcp
+    comment: "Blackbox Exporter probes"
+  when: ansible_os_family == "Debian"

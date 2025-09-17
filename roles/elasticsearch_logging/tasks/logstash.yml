@@ -1,0 +1,73 @@
+---
+# Logstash Installation and Configuration
+
+- name: Install Logstash
+  apt:
+    name: logstash
+    state: present
+  when: ansible_os_family == "Debian"
+  notify: restart logstash
+
+- name: Create logstash data and log directories  
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ logstash.user }}"
+    group: "{{ logstash.group }}"
+    mode: '0755'
+  loop:
+    - "{{ logstash.data_dir }}"
+    - "{{ logstash.log_dir }}"
+    - "{{ logstash.config_dir }}/conf.d"
+
+- name: Configure Logstash main settings
+  template:
+    src: logstash.yml.j2
+    dest: "{{ logstash.config_dir }}/logstash.yml"
+    owner: root
+    group: "{{ logstash.group }}"
+    mode: '0660'
+  notify: restart logstash
+
+- name: Configure Logstash JVM settings
+  template:
+    src: logstash-jvm.options.j2
+    dest: "{{ logstash.config_dir }}/jvm.options"
+    owner: root
+    group: "{{ logstash.group }}"
+    mode: '0660'
+  notify: restart logstash
+
+- name: Configure Logstash input pipeline
+  template:
+    src: 01-input.conf.j2
+    dest: "{{ logstash.config_dir }}/conf.d/01-input.conf"
+    owner: root
+    group: "{{ logstash.group }}"
+    mode: '0644'
+  notify: restart logstash
+
+- name: Configure Logstash filter pipeline
+  template:
+    src: 02-filter.conf.j2
+    dest: "{{ logstash.config_dir }}/conf.d/02-filter.conf"
+    owner: root
+    group: "{{ logstash.group }}"
+    mode: '0644'
+  notify: restart logstash
+
+- name: Configure Logstash output pipeline
+  template:
+    src: 03-output.conf.j2
+    dest: "{{ logstash.config_dir }}/conf.d/03-output.conf"
+    owner: root
+    group: "{{ logstash.group }}"
+    mode: '0644'
+  notify: restart logstash
+
+- name: Enable and start Logstash service
+  systemd:
+    name: logstash
+    enabled: "{{ elk_services_enabled }}"
+    state: "{{ elk_services_state }}"
+    daemon_reload: true

@@ -1,0 +1,39 @@
+[Unit]
+Description=Prometheus Server
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User={{ prometheus.user }}
+Group={{ prometheus.group }}
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/prometheus \
+  --config.file={{ prometheus.config_dir }}/prometheus.yml \
+  --storage.tsdb.path={{ prometheus.data_dir }} \
+  --storage.tsdb.retention.time={{ prometheus.retention_time }} \
+  --storage.tsdb.retention.size={{ prometheus.storage_retention_size }} \
+  --web.console.libraries={{ prometheus.config_dir }}/console_libraries \
+  --web.console.templates={{ prometheus.config_dir }}/consoles \
+  --web.listen-address={{ prometheus_web_listen_address }} \
+  --web.external-url={{ prometheus_web_external_url }} \
+  --web.enable-lifecycle \
+  --log.level=info \
+  --log.format=logfmt
+
+SyslogIdentifier=prometheus
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+SendSIGKILL=no
+
+# Security measures
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ prometheus.data_dir }} {{ prometheus.log_dir }}
+
+[Install]
+WantedBy=multi-user.target

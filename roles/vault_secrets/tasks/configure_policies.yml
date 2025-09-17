@@ -1,0 +1,223 @@
+---
+# Vault policies configuration
+
+- name: Create policy files directory
+  file:
+    path: /tmp/vault-policies
+    state: directory
+    mode: '0755'
+
+- name: Generate admin policy
+  copy:
+    content: |
+      # Admin policy - full access
+      path "*" {
+        capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+      }
+    dest: /tmp/vault-policies/admin.hcl
+    mode: '0644'
+
+- name: Generate DevOps Suite general policy
+  copy:
+    content: |
+      # DevOps Suite general policy
+      path "secret/data/devops-suite/*" {
+        capabilities = ["create", "read", "update", "delete", "list"]
+      }
+      
+      path "secret/metadata/devops-suite/*" {
+        capabilities = ["read", "list"]
+      }
+      
+      path "pki/issue/devops-suite" {
+        capabilities = ["create", "update"]
+      }
+      
+      path "transit/encrypt/devops-suite" {
+        capabilities = ["update"]
+      }
+      
+      path "transit/decrypt/devops-suite" {
+        capabilities = ["update"]
+      }
+    dest: /tmp/vault-policies/devops-suite.hcl
+    mode: '0644'
+
+- name: Generate GitLab specific policy
+  copy:
+    content: |
+      # GitLab secrets policy
+      path "secret/data/gitlab/*" {
+        capabilities = ["read"]
+      }
+      
+      path "database/creds/gitlab-role" {
+        capabilities = ["read"]
+      }
+      
+      path "pki/issue/devops-suite" {
+        capabilities = ["create", "update"]
+      }
+      
+      path "ssh/sign/server-access" {
+        capabilities = ["create", "update"]
+      }
+    dest: /tmp/vault-policies/gitlab-secrets.hcl
+    mode: '0644'
+
+- name: Generate Nexus specific policy
+  copy:
+    content: |
+      # Nexus secrets policy
+      path "secret/data/nexus/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/registry/*" {
+        capabilities = ["read"]
+      }
+      
+      path "database/creds/nexus-role" {
+        capabilities = ["read"]
+      }
+    dest: /tmp/vault-policies/nexus-secrets.hcl
+    mode: '0644'
+
+- name: Generate Keycloak specific policy
+  copy:
+    content: |
+      # Keycloak secrets policy
+      path "secret/data/keycloak/*" {
+        capabilities = ["read"]
+      }
+      
+      path "database/creds/keycloak-role" {
+        capabilities = ["read"]
+      }
+      
+      path "pki/issue/devops-suite" {
+        capabilities = ["create", "update"]
+      }
+    dest: /tmp/vault-policies/keycloak-secrets.hcl
+    mode: '0644'
+
+- name: Generate Rancher specific policy
+  copy:
+    content: |
+      # Rancher and Kubernetes secrets policy
+      path "secret/data/rancher/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/kubernetes/*" {
+        capabilities = ["read"]
+      }
+      
+      path "pki/issue/devops-suite" {
+        capabilities = ["create", "update"]
+      }
+      
+      path "ssh/sign/server-access" {
+        capabilities = ["create", "update"]
+      }
+    dest: /tmp/vault-policies/rancher-secrets.hcl
+    mode: '0644'
+
+- name: Generate monitoring specific policy
+  copy:
+    content: |
+      # Monitoring and alerting secrets policy
+      path "secret/data/monitoring/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/alerting/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/grafana/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/prometheus/*" {
+        capabilities = ["read"]
+      }
+    dest: /tmp/vault-policies/monitoring-secrets.hcl
+    mode: '0644'
+
+- name: Generate database read policy
+  copy:
+    content: |
+      # Database access policy
+      path "database/creds/*" {
+        capabilities = ["read"]
+      }
+      
+      path "database/config/*" {
+        capabilities = ["read"]
+      }
+    dest: /tmp/vault-policies/database-read.hcl
+    mode: '0644'
+
+- name: Generate K8s secrets policy
+  copy:
+    content: |
+      # Kubernetes secrets policy
+      path "secret/data/kubernetes/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/k8s/*" {
+        capabilities = ["read"]
+      }
+      
+      path "pki/issue/devops-suite" {
+        capabilities = ["create", "update"]
+      }
+    dest: /tmp/vault-policies/k8s-secrets.hcl
+    mode: '0644'
+
+- name: Generate alert secrets policy
+  copy:
+    content: |
+      # Alerting secrets policy
+      path "secret/data/alerting/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/notifications/*" {
+        capabilities = ["read"]
+      }
+      
+      path "secret/data/webhooks/*" {
+        capabilities = ["read"]
+      }
+    dest: /tmp/vault-policies/alert-secrets.hcl
+    mode: '0644'
+
+- name: Upload policies to Vault
+  uri:
+    url: "{{ vault_api_url }}/sys/policies/acl/{{ item }}"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      policy: "{{ lookup('file', '/tmp/vault-policies/' + item + '.hcl') }}"
+    status_code: [200, 204]
+  loop:
+    - admin
+    - devops-suite
+    - gitlab-secrets
+    - nexus-secrets
+    - keycloak-secrets
+    - rancher-secrets
+    - monitoring-secrets
+    - database-read
+    - k8s-secrets
+    - alert-secrets
+
+- name: Clean up policy files
+  file:
+    path: /tmp/vault-policies
+    state: absent

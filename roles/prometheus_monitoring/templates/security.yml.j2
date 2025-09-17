@@ -1,0 +1,125 @@
+# Security Alert Rules for DevOps Suite
+groups:
+  - name: security.rules
+    rules:
+      # Failed login attempts
+      - alert: HighFailedLogins
+        expr: increase(authentication_failures_total[15m]) > 10
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "{{ $value }} failed login attempts detected in the last 15 minutes on {{ $labels.instance }}."
+
+      # Suspicious activity alerts
+      - alert: UnauthorizedAccessAttempt
+        expr: increase(http_requests_total{status="401"}[10m]) > 20
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Multiple unauthorized access attempts"
+          description: "{{ $value }} unauthorized access attempts (HTTP 401) in the last 10 minutes on {{ $labels.instance }}."
+
+      # Security scanning alerts
+      - alert: SecurityScanDetected
+        expr: increase(http_requests_total{user_agent=~".*[Nn]map.*|.*[Ss]qlmap.*|.*[Nn]ikto.*"}[5m]) > 0
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Security scanning tool detected"
+          description: "Security scanning activity detected from user agent {{ $labels.user_agent }} on {{ $labels.instance }}."
+
+      # Brute force attack detection
+      - alert: BruteForceAttack
+        expr: increase(authentication_failures_total[5m]) > 50
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Potential brute force attack detected"
+          description: "{{ $value }} failed authentication attempts in 5 minutes on {{ $labels.instance }}. Possible brute force attack."
+
+      # File system changes
+      - alert: UnauthorizedFileChanges
+        expr: increase(node_filesystem_files_total[1h]) > 1000
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High number of file system changes"
+          description: "{{ $value }} new files created in the last hour on {{ $labels.instance }}."
+
+      # Network anomalies
+      - alert: SuspiciousNetworkActivity
+        expr: rate(node_network_transmit_bytes_total[5m]) > 50000000  # 50MB/s
+        for: 10m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Suspicious network activity detected"
+          description: "High network transmission rate ({{ $value }} bytes/s) detected on {{ $labels.instance }}."
+
+      # Process monitoring
+      - alert: SuspiciousProcess
+        expr: node_procs_running > 500
+        for: 15m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High number of running processes"
+          description: "{{ $value }} processes are running on {{ $labels.instance }}, which may indicate suspicious activity."
+
+      # Certificate validation
+      - alert: InvalidSSLCertificate
+        expr: probe_ssl_certificate_valid == 0
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Invalid SSL certificate detected"
+          description: "SSL certificate validation failed for {{ $labels.instance }}."
+
+      # Root login attempts
+      - alert: RootLoginAttempt
+        expr: increase(ssh_login_attempts_total{user="root"}[15m]) > 0
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Root login attempt detected"
+          description: "{{ $value }} root login attempts detected in the last 15 minutes on {{ $labels.instance }}."
+
+      # Port scanning detection
+      - alert: PortScanDetected
+        expr: increase(node_netstat_TcpExt_ListenDrops[10m]) > 100
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Potential port scanning detected"
+          description: "High number of dropped connections ({{ $value }}) may indicate port scanning on {{ $labels.instance }}."
+
+      # System integrity
+      - alert: SystemIntegrityCompromised
+        expr: node_boot_time_seconds != node_boot_time_seconds offset 1d
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Unexpected system reboot detected"
+          description: "System {{ $labels.instance }} has been rebooted unexpectedly. Check for security compromise."
+
+      # File permission changes
+      - alert: CriticalFilePermissionChange
+        expr: increase(file_permission_changes_total{file=~"/etc/passwd|/etc/shadow|/etc/sudoers"}[1h]) > 0
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Critical file permission changed"
+          description: "Permissions changed on critical system file {{ $labels.file }} on {{ $labels.instance }}."

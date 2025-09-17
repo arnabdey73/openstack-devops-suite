@@ -1,0 +1,126 @@
+---
+# DevOps Suite Monitoring and Observability Playbook
+# This playbook deploys comprehensive monitoring, logging, and observability stack
+
+- name: Deploy Monitoring and Observability Stack
+  hosts: monitoring
+  become: true
+  vars:
+    # Environment-specific variables
+    environment_name: "{{ env | default('production') }}"
+    
+    # Notification settings
+    alert_email_addresses: "{{ monitoring_email | default('admin@devops-suite.local') }}"
+    slack_webhook_url: "{{ monitoring_slack_webhook | default('') }}"
+    slack_channel: "{{ monitoring_slack_channel | default('#alerts') }}"
+    
+    # SMTP settings for alerts
+    smtp_server: "{{ monitoring_smtp_server | default('localhost:587') }}"
+    smtp_user: "{{ monitoring_smtp_user | default('') }}"
+    smtp_password: "{{ monitoring_smtp_password | default('') }}"
+    
+    # Grafana admin credentials
+    grafana_admin_password: "{{ monitoring_grafana_password | default('admin123') }}"
+    grafana_secret_key: "{{ monitoring_grafana_secret | default('SW2YcwTIb9zpOOhoPsMm') }}"
+
+  pre_tasks:
+    - name: Update package cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install common monitoring dependencies
+      apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+        state: present
+      when: ansible_os_family == "Debian"
+
+  roles:
+    # Core monitoring stack
+    - role: prometheus_monitoring
+      tags: ['monitoring', 'prometheus', 'alerting']
+      
+    - role: grafana_visualization  
+      tags: ['monitoring', 'grafana', 'visualization']
+      
+    # Centralized logging stack
+    - role: elasticsearch_logging
+      tags: ['logging', 'elk', 'elasticsearch', 'kibana']
+
+  post_tasks:
+    - name: Create monitoring summary file
+      template:
+        src: monitoring_summary.md.j2
+        dest: /tmp/monitoring_deployment_summary.md
+        mode: '0644'
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display monitoring deployment summary
+      debug:
+        msg: |
+          🚀 DevOps Suite Monitoring Stack Deployed Successfully!
+          
+          📊 Prometheus Monitoring:
+          - Prometheus: http://{{ ansible_default_ipv4.address }}:9090
+          - Alertmanager: http://{{ ansible_default_ipv4.address }}:9093
+          - Node Exporter: http://{{ ansible_default_ipv4.address }}:9100
+          
+          📈 Grafana Dashboards:
+          - Grafana: http://{{ ansible_default_ipv4.address }}:3000
+          - Username: admin
+          - Password: {{ grafana_admin_password }}
+          
+          📋 Centralized Logging:
+          - Elasticsearch: http://{{ ansible_default_ipv4.address }}:9200
+          - Kibana: http://{{ ansible_default_ipv4.address }}:5601
+          - Logstash: {{ ansible_default_ipv4.address }}:5044
+          
+          🔔 Alerting configured for:
+          - Email: {{ alert_email_addresses }}
+          {% if slack_webhook_url %}
+          - Slack: {{ slack_channel }}
+          {% endif %}
+          
+          📖 Summary saved to: /tmp/monitoring_deployment_summary.md
+
+# Deploy monitoring agents on all DevOps Suite hosts
+- name: Deploy Monitoring Agents on All Hosts
+  hosts: all
+  become: true
+  tags: ['agents', 'exporters']
+  
+  tasks:
+    - name: Install Node Exporter on all hosts
+      include_role:
+        name: prometheus_monitoring
+        tasks_from: node_exporter
+      vars:
+        node_exporter:
+          version: "1.6.1"
+          port: 9100
+          user: "node_exporter"
+          group: "node_exporter"
+          
+    - name: Install Filebeat on all hosts
+      include_role:
+        name: elasticsearch_logging
+        tasks_from: filebeat
+      vars:
+        filebeat:
+          version: "8.10.4"
+          config_dir: "/etc/filebeat"
+          data_dir: "/var/lib/filebeat"
+          logstash_hosts: ["{{ hostvars[groups['monitoring'][0]]['ansible_default_ipv4']['address'] }}:5044"]
+
+    - name: Configure service-specific monitoring
+      include_tasks: "service_monitoring_{{ inventory_hostname_short }}.yml"
+      when: inventory_hostname_short in ['gitlab', 'nexus', 'keycloak', 'rancher', 'kafka', 'redis']
+      ignore_errors: true

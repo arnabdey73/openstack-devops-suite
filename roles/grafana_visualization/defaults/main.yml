@@ -1,0 +1,123 @@
+---
+# Grafana Visualization Role - Default Variables
+
+# Grafana Configuration
+grafana:
+  version: "10.1.5"
+  user: "grafana"
+  group: "grafana"
+  home_dir: "/var/lib/grafana"
+  config_dir: "/etc/grafana"
+  log_dir: "/var/log/grafana"
+  data_dir: "/var/lib/grafana"
+  port: 3000
+  
+  # Admin user configuration
+  admin_user: "admin"
+  admin_password: "{{ grafana_admin_password | default('admin123') }}"
+  
+  # Security settings
+  secret_key: "{{ grafana_secret_key | default('SW2YcwTIb9zpOOhoPsMm') }}"
+  disable_gravatar: true
+  
+  # Server settings
+  domain: "{{ ansible_default_ipv4.address }}"
+  root_url: "http://{{ ansible_default_ipv4.address }}:{{ grafana.port }}"
+  serve_from_sub_path: false
+  
+  # Database settings (SQLite default)
+  database:
+    type: "sqlite3"
+    host: "127.0.0.1:3306"
+    name: "grafana"
+    user: "root"
+    password: ""
+    path: "/var/lib/grafana/grafana.db"
+
+# Data sources configuration
+grafana_datasources:
+  - name: "Prometheus"
+    type: "prometheus"
+    access: "proxy"
+    url: "http://localhost:9090"
+    is_default: true
+    editable: true
+    json_data:
+      httpMethod: "POST"
+      queryTimeout: "60s"
+      timeInterval: "15s"
+
+# Dashboard configuration
+grafana_dashboards:
+  - name: "DevOps Suite Overview"
+    dashboard_id: "devops-overview"
+    folder: "DevOps Suite"
+  
+  - name: "Infrastructure Monitoring"
+    dashboard_id: "infrastructure-monitoring"
+    folder: "Infrastructure"
+    
+  - name: "Application Performance"
+    dashboard_id: "application-performance"  
+    folder: "Applications"
+    
+  - name: "Security Dashboard"
+    dashboard_id: "security-dashboard"
+    folder: "Security"
+
+# Notification channels
+grafana_notification_channels:
+  - name: "Email Alerts"
+    type: "email"
+    settings:
+      addresses: "{{ alert_email_addresses | default('admin@devops-suite.local') }}"
+      
+  - name: "Slack Alerts"
+    type: "slack"
+    settings:
+      url: "{{ slack_webhook_url | default('') }}"
+      channel: "{{ slack_channel | default('#alerts') }}"
+      username: "Grafana"
+    when: slack_webhook_url is defined and slack_webhook_url != ""
+
+# Plugin configuration
+grafana_plugins:
+  - grafana-clock-panel
+  - grafana-simple-json-datasource
+  - grafana-worldmap-panel
+  - grafana-piechart-panel
+  - grafana-polystat-panel
+
+# LDAP/OAuth configuration (optional)
+grafana_auth:
+  disable_login_form: false
+  disable_signout_menu: false
+  oauth_auto_login: false
+  
+# Security and access control
+grafana_security:
+  admin_user: "{{ grafana.admin_user }}"
+  admin_password: "{{ grafana.admin_password }}"
+  secret_key: "{{ grafana.secret_key }}"
+  login_remember_days: 7
+  cookie_username: "grafana_user"
+  cookie_remember_name: "grafana_remember"
+  disable_gravatar: true
+
+# Logging configuration
+grafana_logging:
+  level: "info"
+  format: "text"
+  
+# SMTP settings for alerting
+grafana_smtp:
+  enabled: true
+  host: "{{ smtp_server | default('localhost:587') }}"
+  user: "{{ smtp_user | default('') }}"
+  password: "{{ smtp_password | default('') }}"
+  from_address: "{{ grafana_from_email | default('grafana@devops-suite.local') }}"
+  from_name: "Grafana DevOps Suite"
+
+# Service configuration
+grafana_service_enabled: true
+grafana_service_state: "started"

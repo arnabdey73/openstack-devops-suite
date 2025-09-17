@@ -1,0 +1,190 @@
+---
+# ArgoCD GitOps Installation and Configuration
+
+- name: Ensure kubectl is installed
+  get_url:
+    url: "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Ensure Helm is installed
+  shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+
+- name: Create ArgoCD namespace
+  kubernetes.core.k8s:
+    name: "{{ argocd.namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install ArgoCD using Helm
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: "argo/argo-cd"
+    release_namespace: "{{ argocd.namespace }}"
+    create_namespace: true
+    chart_version: "{{ argocd.version }}"
+    values:
+      global:
+        image:
+          tag: "{{ argocd.version }}"
+      server:
+        service:
+          type: NodePort
+          nodePortHttp: "{{ argocd.server.port }}"
+        insecure: "{{ argocd.server.insecure }}"
+        config:
+          url: "http://{{ argocd.server.host }}:{{ argocd.server.port }}"
+          application.instanceLabelKey: "argocd.argoproj.io/instance"
+          admin.enabled: true
+          accounts.admin: "apiKey,login"
+        rbacConfig:
+          policy.default: "role:readonly"
+          policy.csv: "{{ argocd_rbac.policy }}"
+          scopes: "{{ argocd_rbac.scopes }}"
+      configs:
+        secret:
+          argocdServerAdminPassword: "{{ argocd.admin.password | password_hash('bcrypt') }}"
+    wait: true
+    wait_timeout: 600s
+
+- name: Add Helm repositories for ArgoCD
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    repo_url: "{{ item.url }}"
+  loop:
+    - { name: "argo", url: "https://argoproj.github.io/argo-helm" }
+    - { name: "prometheus-community", url: "https://prometheus-community.github.io/helm-charts" }
+    - { name: "grafana", url: "https://grafana.github.io/helm-charts" }
+    - { name: "jaeger", url: "https://jaegertracing.github.io/helm-charts" }
+    - { name: "elastic", url: "https://helm.elastic.co" }
+    - { name: "bitnami", url: "https://charts.bitnami.com/bitnami" }
+
+- name: Wait for ArgoCD server to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: argocd-server
+    namespace: "{{ argocd.namespace }}"
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+- name: Create ArgoCD projects
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: "{{ item.name }}"
+        namespace: "{{ argocd.namespace }}"
+      spec:
+        description: "{{ item.description }}"
+        sourceRepos: "{{ item.source_repos }}"
+        destinations: "{{ item.destinations }}"
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+        namespaceResourceWhitelist:
+          - group: '*'
+            kind: '*'
+  loop: "{{ argocd.projects }}"
+
+- name: Configure ArgoCD repositories
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "repo-{{ item.name }}"
+        namespace: "{{ argocd.namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        type: "{{ item.type }}"
+        url: "{{ item.url }}"
+        username: "{{ item.username | default('') }}"
+        password: "{{ item.password | default('') }}"
+  loop: "{{ argocd.repositories }}"
+  no_log: true
+
+- name: Create GitOps applications
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: "{{ item.name }}"
+        namespace: "{{ argocd.namespace }}"
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: "{{ item.project }}"
+        source:
+          repoURL: "{{ item.source.repoURL }}"
+          chart: "{{ item.source.chart | default(omit) }}"
+          path: "{{ item.source.path | default(omit) }}"
+          targetRevision: "{{ item.source.targetRevision }}"
+          helm:
+            values: "{{ item.values | to_nice_yaml | default(omit) }}"
+        destination:
+          server: "{{ item.destination.server }}"
+          namespace: "{{ item.destination.namespace }}"
+        syncPolicy:
+          automated:
+            prune: "{{ gitops_workflows[0].auto_prune }}"
+            selfHeal: "{{ gitops_workflows[0].self_heal }}"
+          syncOptions:
+            - "CreateNamespace=true"
+            - "Validate=true"
+  loop: "{{ gitops_applications }}"
+
+- name: Create Helm chart templates
+  include_tasks: helm_templates.yml
+
+- name: Configure ArgoCD notifications
+  include_tasks: notifications.yml
+  when: argocd_notifications.enabled
+
+- name: Install ArgoCD CLI
+  get_url:
+    url: "https://github.com/argoproj/argo-cd/releases/download/{{ argocd.version }}/argocd-linux-amd64"
+    dest: /usr/local/bin/argocd
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Configure firewall for ArgoCD
+  ufw:
+    rule: allow
+    port: "{{ argocd.server.port }}"
+    proto: tcp
+    comment: "ArgoCD GitOps"
+  when: ansible_os_family == "Debian"
+
+- name: Display ArgoCD access information
+  debug:
+    msg: |
+      🚀 ArgoCD GitOps platform deployed successfully!
+      
+      Access Information:
+      - ArgoCD UI: http://{{ argocd.server.host }}:{{ argocd.server.port }}
+      - Username: admin
+      - Password: {{ argocd.admin.password }}
+      
+      CLI Usage:
+      argocd login {{ argocd.server.host }}:{{ argocd.server.port }}
+      argocd app list
+      
+      Configured Applications:
+      {% for app in gitops_applications %}
+      - {{ app.name }}: {{ app.source.repoURL }}
+      {% endfor %}
+      
+      GitOps workflows are now active for continuous deployment!

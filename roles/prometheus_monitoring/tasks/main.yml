@@ -1,0 +1,136 @@
+---
+# Prometheus Monitoring Installation and Configuration
+
+- name: Create prometheus system group
+  group:
+    name: "{{ prometheus.group }}"
+    system: true
+    state: present
+
+- name: Create prometheus system user
+  user:
+    name: "{{ prometheus.user }}"
+    system: true
+    shell: "/bin/false"
+    group: "{{ prometheus.group }}"
+    createhome: false
+    home: "{{ prometheus.data_dir }}"
+    state: present
+
+- name: Create prometheus directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ prometheus.user }}"
+    group: "{{ prometheus.group }}"
+    mode: '0755'
+  loop:
+    - "{{ prometheus.config_dir }}"
+    - "{{ prometheus.data_dir }}"
+    - "{{ prometheus.log_dir }}"
+    - "{{ alert_rules.rules_dir }}"
+    - "/opt/prometheus"
+    - "/opt/prometheus/bin"
+
+- name: Download and install Prometheus
+  unarchive:
+    src: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus.version }}/prometheus-{{ prometheus.version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+    creates: "/tmp/prometheus-{{ prometheus.version }}.linux-amd64"
+  register: prometheus_download
+
+- name: Copy prometheus binaries to /opt
+  copy:
+    src: "/tmp/prometheus-{{ prometheus.version }}.linux-amd64/{{ item }}"
+    dest: "/opt/prometheus/bin/{{ item }}"
+    mode: '0755'
+    owner: root
+    group: root
+    remote_src: true
+  loop:
+    - prometheus
+    - promtool
+  when: prometheus_download.changed
+
+- name: Create prometheus binary symlinks
+  file:
+    src: "/opt/prometheus/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - prometheus
+    - promtool
+
+- name: Install and configure Node Exporter
+  include_tasks: node_exporter.yml
+
+- name: Install and configure Alertmanager
+  include_tasks: alertmanager.yml
+
+- name: Install and configure Blackbox Exporter
+  include_tasks: blackbox_exporter.yml
+
+- name: Generate prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus.config_dir }}/prometheus.yml"
+    owner: "{{ prometheus.user }}"
+    group: "{{ prometheus.group }}"
+    mode: '0644'
+  notify: restart prometheus
+
+- name: Generate alert rules
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ alert_rules.rules_dir }}/{{ item }}"
+    owner: "{{ prometheus.user }}"
+    group: "{{ prometheus.group }}"
+    mode: '0644'
+  loop:
+    - infrastructure.yml
+    - applications.yml
+    - security.yml
+  notify: restart prometheus
+  when: alert_rules.enabled
+
+- name: Create prometheus systemd service
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart prometheus
+
+- name: Enable and start prometheus service
+  systemd:
+    name: prometheus
+    enabled: "{{ prometheus_service_enabled }}"
+    state: "{{ prometheus_service_state }}"
+    daemon_reload: true
+
+- name: Configure firewall for Prometheus
+  ufw:
+    rule: allow
+    port: "{{ prometheus.port }}"
+    proto: tcp
+    comment: "Prometheus monitoring"
+  when: ansible_os_family == "Debian"
+
+- name: Validate prometheus configuration
+  command: "/usr/local/bin/promtool check config {{ prometheus.config_dir }}/prometheus.yml"
+  register: prometheus_config_check
+  failed_when: prometheus_config_check.rc != 0
+  changed_when: false
+
+- name: Display prometheus status
+  debug:
+    msg: |
+      Prometheus monitoring stack installed successfully!
+      - Prometheus: http://{{ ansible_default_ipv4.address }}:{{ prometheus.port }}
+      - Alertmanager: http://{{ ansible_default_ipv4.address }}:{{ alertmanager.port }}
+      - Node Exporter: http://{{ ansible_default_ipv4.address }}:{{ node_exporter.port }}
+      - Blackbox Exporter: http://{{ ansible_default_ipv4.address }}:{{ blackbox_exporter.port }}

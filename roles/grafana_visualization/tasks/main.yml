@@ -1,0 +1,133 @@
+---
+# Grafana Installation and Configuration
+
+- name: Add Grafana APT repository key
+  apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Add Grafana APT repository
+  apt_repository:
+    repo: "deb https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+  when: ansible_os_family == "Debian"
+
+- name: Install Grafana
+  apt:
+    name: grafana
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+  notify: restart grafana
+
+- name: Install Grafana (RedHat/CentOS)
+  yum:
+    name: "https://dl.grafana.com/enterprise/release/grafana-enterprise-{{ grafana.version }}-1.x86_64.rpm"
+    state: present
+  when: ansible_os_family == "RedHat"
+  notify: restart grafana
+
+- name: Create grafana directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grafana.user }}"
+    group: "{{ grafana.group }}"
+    mode: '0755'
+  loop:
+    - "{{ grafana.data_dir }}"
+    - "{{ grafana.log_dir }}"
+    - "{{ grafana.data_dir }}/dashboards"
+    - "{{ grafana.data_dir }}/plugins"
+    - "/etc/grafana/provisioning"
+    - "/etc/grafana/provisioning/datasources"
+    - "/etc/grafana/provisioning/dashboards"
+    - "/etc/grafana/provisioning/notifiers"
+
+- name: Generate grafana configuration
+  template:
+    src: grafana.ini.j2
+    dest: "{{ grafana.config_dir }}/grafana.ini"
+    owner: root
+    group: "{{ grafana.group }}"
+    mode: '0640'
+  notify: restart grafana
+
+- name: Configure grafana data sources
+  template:
+    src: datasources.yml.j2
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: root
+    group: "{{ grafana.group }}"
+    mode: '0644'
+  notify: restart grafana
+
+- name: Configure dashboard provisioning
+  template:
+    src: dashboards.yml.j2
+    dest: /etc/grafana/provisioning/dashboards/devops-suite.yml
+    owner: root
+    group: "{{ grafana.group }}"
+    mode: '0644'
+  notify: restart grafana
+
+- name: Install custom dashboards
+  include_tasks: dashboards.yml
+
+- name: Configure notification channels
+  template:
+    src: notifiers.yml.j2
+    dest: /etc/grafana/provisioning/notifiers/alerts.yml
+    owner: root
+    group: "{{ grafana.group }}"
+    mode: '0644'
+  notify: restart grafana
+
+- name: Install Grafana plugins
+  grafana_plugin:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ grafana_plugins }}"
+  notify: restart grafana
+  ignore_errors: true
+
+- name: Enable and start grafana service
+  systemd:
+    name: grafana-server
+    enabled: "{{ grafana_service_enabled }}"
+    state: "{{ grafana_service_state }}"
+    daemon_reload: true
+
+- name: Configure firewall for Grafana
+  ufw:
+    rule: allow
+    port: "{{ grafana.port }}"
+    proto: tcp
+    comment: "Grafana dashboard"
+  when: ansible_os_family == "Debian"
+
+- name: Wait for Grafana to be available
+  uri:
+    url: "http://localhost:{{ grafana.port }}/api/health"
+    method: GET
+    status_code: 200
+  register: grafana_health
+  until: grafana_health.status == 200
+  retries: 30
+  delay: 5
+
+- name: Display grafana access information
+  debug:
+    msg: |
+      Grafana dashboard installed successfully!
+      - URL: http://{{ ansible_default_ipv4.address }}:{{ grafana.port }}
+      - Username: {{ grafana.admin_user }}
+      - Password: {{ grafana.admin_password }}
+      
+      Default dashboards have been provisioned for:
+      - DevOps Suite Overview
+      - Infrastructure Monitoring  
+      - Application Performance
+      - Security Dashboard

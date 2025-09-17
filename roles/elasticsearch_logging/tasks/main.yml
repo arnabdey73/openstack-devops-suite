@@ -1,0 +1,80 @@
+---
+# ELK Stack Installation and Configuration
+
+- name: Install Java (required for ELK stack)
+  apt:
+    name: openjdk-11-jdk
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Add Elastic APT repository key
+  apt_key:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Add Elastic APT repository
+  apt_repository:
+    repo: "deb https://artifacts.elastic.co/packages/8.x/apt stable main"
+    state: present
+    filename: elastic-8.x
+  when: ansible_os_family == "Debian"
+
+- name: Install and configure Elasticsearch
+  include_tasks: elasticsearch.yml
+
+- name: Install and configure Logstash
+  include_tasks: logstash.yml
+
+- name: Install and configure Kibana
+  include_tasks: kibana.yml
+
+- name: Install and configure Filebeat
+  include_tasks: filebeat.yml
+
+- name: Configure index templates and policies
+  include_tasks: index_management.yml
+
+- name: Configure Kibana dashboards
+  include_tasks: kibana_dashboards.yml
+
+- name: Configure firewall for ELK stack
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "ELK Stack"
+  loop:
+    - "{{ elasticsearch.port }}"
+    - "{{ kibana.port }}"
+    - "{{ logstash.port }}"
+  when: ansible_os_family == "Debian"
+
+- name: Verify ELK stack health
+  uri:
+    url: "http://localhost:{{ elasticsearch.port }}/_cluster/health"
+    method: GET
+    status_code: [200, 401]
+  register: elk_health
+  until: elk_health.status in [200, 401]
+  retries: 30
+  delay: 10
+
+- name: Display ELK stack access information
+  debug:
+    msg: |
+      ELK Stack installed successfully!
+      
+      Services:
+      - Elasticsearch: http://{{ ansible_default_ipv4.address }}:{{ elasticsearch.port }}
+      - Kibana: http://{{ ansible_default_ipv4.address }}:{{ kibana.port }}
+      - Logstash: {{ ansible_default_ipv4.address }}:{{ logstash.port }}
+      
+      Log Sources:
+      - System logs (syslog, auth.log)
+      - Web server logs (nginx, apache)
+      - Application logs (GitLab, Kafka, Redis)
+      - Custom application logs
+      
+      Access Kibana to view and analyze logs from all DevOps Suite components.

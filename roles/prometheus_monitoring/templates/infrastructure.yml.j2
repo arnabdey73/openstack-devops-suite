@@ -1,0 +1,118 @@
+# Infrastructure Alert Rules for DevOps Suite
+groups:
+  - name: infrastructure.rules
+    rules:
+      # Node availability alerts
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+
+      # CPU usage alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% on {{ $labels.instance }} for more than 10 minutes."
+
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 95% on {{ $labels.instance }} for more than 5 minutes."
+
+      # Memory usage alerts
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 80% on {{ $labels.instance }} for more than 10 minutes."
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 95% on {{ $labels.instance }} for more than 5 minutes."
+
+      # Disk usage alerts
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is above 85% on filesystem {{ $labels.mountpoint }} at {{ $labels.instance }}."
+
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk usage on {{ $labels.instance }}"
+          description: "Disk usage is above 95% on filesystem {{ $labels.mountpoint }} at {{ $labels.instance }}."
+
+      # Network alerts
+      - alert: HighNetworkReceive
+        expr: irate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High network receive on {{ $labels.instance }}"
+          description: "Network interface {{ $labels.device }} on {{ $labels.instance }} is receiving more than 100MB/s."
+
+      - alert: HighNetworkTransmit
+        expr: irate(node_network_transmit_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High network transmit on {{ $labels.instance }}"
+          description: "Network interface {{ $labels.device }} on {{ $labels.instance }} is transmitting more than 100MB/s."
+
+      # Load average alerts
+      - alert: HighLoad
+        expr: node_load1 > 2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load average on {{ $labels.instance }}"
+          description: "Load average is {{ $value }} on {{ $labels.instance }} for more than 15 minutes."
+
+      # System boot alerts
+      - alert: SystemReboot
+        expr: increase(node_boot_time_seconds[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "System reboot on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} has rebooted."
+
+      # Time sync alerts
+      - alert: ClockSkew
+        expr: abs(node_timex_offset_seconds) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Clock skew detected on {{ $labels.instance }}"
+          description: "Clock on {{ $labels.instance }} is out of sync by {{ $value }} seconds."

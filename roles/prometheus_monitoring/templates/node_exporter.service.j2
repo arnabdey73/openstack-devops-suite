@@ -1,0 +1,28 @@
+[Unit]
+Description=Node Exporter for Prometheus
+Documentation=https://github.com/prometheus/node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ node_exporter.user }}
+Group={{ node_exporter.group }}
+ExecStart=/usr/local/bin/node_exporter \
+  --web.listen-address=0.0.0.0:{{ node_exporter.port }} \
+  --collector.filesystem.ignored-mount-points="^/(dev|proc|sys|var/lib/docker/.+)($|/)" \
+  --collector.filesystem.ignored-fs-types="^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$" \
+  --log.level=info
+
+SyslogIdentifier=node_exporter
+Restart=always
+RestartSec=5
+
+# Security measures
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

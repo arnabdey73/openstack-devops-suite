@@ -1,0 +1,259 @@
+---
+# DevOps Suite integrations configuration
+
+- name: Store GitLab secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/gitlab/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        database_password: "{{ gitlab_database_password }}"
+        root_password: "{{ gitlab_root_password }}"
+        smtp_password: "{{ gitlab_smtp_password | default('') }}"
+        runner_token: "{{ gitlab_runner_token | default('') }}"
+        oauth_secret: "{{ gitlab_oauth_secret | default('') }}"
+        registry_password: "{{ gitlab_registry_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store Nexus secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/nexus/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        admin_password: "{{ nexus_admin_password }}"
+        database_password: "{{ nexus_database_password | default('') }}"
+        ldap_password: "{{ nexus_ldap_password | default('') }}"
+        docker_registry_password: "{{ nexus_docker_password | default('') }}"
+        npm_registry_token: "{{ nexus_npm_token | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store Keycloak secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/keycloak/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        admin_password: "{{ keycloak_admin_password }}"
+        database_password: "{{ keycloak_database_password }}"
+        master_realm_secret: "{{ keycloak_master_secret | default('') }}"
+        smtp_password: "{{ keycloak_smtp_password | default('') }}"
+        ldap_bind_credential: "{{ keycloak_ldap_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store Rancher secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/rancher/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        admin_password: "{{ rancher_admin_password }}"
+        bootstrap_password: "{{ rancher_bootstrap_password }}"
+        cattle_system_secret: "{{ rancher_cattle_secret | default('') }}"
+        registry_password: "{{ rancher_registry_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store Kafka secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/kafka/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        jmx_password: "{{ kafka_jmx_password | default('') }}"
+        ssl_keystore_password: "{{ kafka_ssl_keystore_password | default('') }}"
+        ssl_truststore_password: "{{ kafka_ssl_truststore_password | default('') }}"
+        sasl_password: "{{ kafka_sasl_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store Redis secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/redis/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ redis_password | default('') }}"
+        sentinel_password: "{{ redis_sentinel_password | default('') }}"
+        ssl_cert_password: "{{ redis_ssl_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store monitoring secrets
+  uri:
+    url: "{{ vault_api_url }}/secret/data/monitoring/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        grafana_admin_password: "{{ grafana_admin_password }}"
+        prometheus_basic_auth: "{{ prometheus_basic_auth | default('') }}"
+        alertmanager_webhook_secret: "{{ alertmanager_webhook_secret | default('') }}"
+        slack_webhook_url: "{{ slack_webhook_url | default('') }}"
+        email_password: "{{ monitoring_email_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Store database credentials
+  uri:
+    url: "{{ vault_api_url }}/secret/data/databases/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        host: "{{ item.host }}"
+        port: "{{ item.port }}"
+        username: "{{ item.username }}"
+        password: "{{ item.password }}"
+        database: "{{ item.database }}"
+        ssl_mode: "{{ item.ssl_mode | default('require') }}"
+    status_code: [200, 204]
+  loop:
+    - name: gitlab
+      host: "{{ gitlab_db_host }}"
+      port: "{{ gitlab_db_port | default(3306) }}"
+      username: "{{ gitlab_db_username }}"
+      password: "{{ gitlab_db_password }}"
+      database: "{{ gitlab_db_name }}"
+    - name: keycloak
+      host: "{{ keycloak_db_host }}"
+      port: "{{ keycloak_db_port | default(5432) }}"
+      username: "{{ keycloak_db_username }}"
+      password: "{{ keycloak_db_password }}"
+      database: "{{ keycloak_db_name }}"
+  no_log: true
+
+- name: Store SSL/TLS certificates information
+  uri:
+    url: "{{ vault_api_url }}/secret/data/certificates/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data:
+        ca_cert: "{{ ssl_ca_cert | default('') }}"
+        wildcard_cert: "{{ ssl_wildcard_cert | default('') }}"
+        wildcard_key: "{{ ssl_wildcard_key | default('') }}"
+        cert_password: "{{ ssl_cert_password | default('') }}"
+    status_code: [200, 204]
+  no_log: true
+  when: ssl_certificates_vault | default(false)
+
+- name: Store API keys and tokens
+  uri:
+    url: "{{ vault_api_url }}/secret/data/api-keys/{{ item.service }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data: "{{ item.keys }}"
+    status_code: [200, 204]
+  loop:
+    - service: github
+      keys:
+        oauth_client_id: "{{ github_oauth_client_id | default('') }}"
+        oauth_client_secret: "{{ github_oauth_client_secret | default('') }}"
+        webhook_secret: "{{ github_webhook_secret | default('') }}"
+        api_token: "{{ github_api_token | default('') }}"
+    - service: docker
+      keys:
+        registry_username: "{{ docker_registry_username | default('') }}"
+        registry_password: "{{ docker_registry_password | default('') }}"
+        registry_email: "{{ docker_registry_email | default('') }}"
+    - service: slack
+      keys:
+        webhook_url: "{{ slack_webhook_url | default('') }}"
+        bot_token: "{{ slack_bot_token | default('') }}"
+        app_token: "{{ slack_app_token | default('') }}"
+  no_log: true
+
+- name: Create AppRole for automated services
+  uri:
+    url: "{{ vault_api_url }}/auth/approle/role/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      token_policies: "{{ item.policies }}"
+      token_ttl: "{{ item.ttl | default('1h') }}"
+      token_max_ttl: "{{ item.max_ttl | default('4h') }}"
+      bind_secret_id: true
+    status_code: [200, 204]
+  loop:
+    - name: gitlab-ci
+      policies: ["gitlab-secrets", "database-read"]
+    - name: ansible-automation
+      policies: ["devops-suite", "k8s-secrets"]
+    - name: monitoring-agent
+      policies: ["monitoring-secrets", "alert-secrets"]
+
+- name: Get AppRole role-id for services
+  uri:
+    url: "{{ vault_api_url }}/auth/approle/role/{{ item }}/role-id"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: approle_ids
+  loop:
+    - gitlab-ci
+    - ansible-automation
+    - monitoring-agent
+
+- name: Generate AppRole secret-id for services
+  uri:
+    url: "{{ vault_api_url }}/auth/approle/role/{{ item }}/secret-id"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body: {}
+  register: approle_secrets
+  loop:
+    - gitlab-ci
+    - ansible-automation
+    - monitoring-agent
+
+- name: Save AppRole credentials for services
+  copy:
+    content: |
+      # AppRole credentials for {{ item.item }}
+      VAULT_ROLE_ID="{{ item.json.data.role_id }}"
+      VAULT_SECRET_ID="{{ approle_secrets.results[ansible_loop.index0].json.data.secret_id }}"
+      VAULT_ADDR="{{ vault_api_url }}"
+    dest: "/opt/vault/config/{{ item.item }}-approle.env"
+    owner: vault
+    group: vault
+    mode: '0600'
+  loop: "{{ approle_ids.results }}"
+  loop_control:
+    extended: yes
+  become: yes
+  no_log: true

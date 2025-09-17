@@ -1,0 +1,102 @@
+---
+# Prometheus Monitoring Role - Default Variables
+
+# Prometheus Configuration
+prometheus:
+  version: "2.47.0"
+  user: "prometheus"
+  group: "prometheus"
+  config_dir: "/etc/prometheus"
+  data_dir: "/var/lib/prometheus"
+  log_dir: "/var/log/prometheus"
+  port: 9090
+  retention_time: "15d"
+  storage_retention_size: "10GB"
+  
+  # Service discovery and targets
+  scrape_interval: "15s"
+  evaluation_interval: "15s"
+  external_labels:
+    cluster: "devops-suite"
+    environment: "{{ ansible_environment | default('production') }}"
+
+# Node Exporter Configuration
+node_exporter:
+  version: "1.6.1"
+  port: 9100
+  user: "node_exporter"
+  group: "node_exporter"
+
+# Alertmanager Configuration  
+alertmanager:
+  version: "0.25.0"
+  user: "alertmanager"
+  group: "alertmanager"
+  config_dir: "/etc/alertmanager"
+  data_dir: "/var/lib/alertmanager"
+  port: 9093
+  
+  # Notification settings
+  smtp:
+    smarthost: "{{ smtp_server | default('localhost:587') }}"
+    from: "{{ alert_from_email | default('alerts@devops-suite.local') }}"
+  
+  slack:
+    webhook_url: "{{ slack_webhook_url | default('') }}"
+    channel: "{{ slack_channel | default('#alerts') }}"
+
+# Service monitoring targets
+monitoring_targets:
+  # Infrastructure services
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: "{{ groups['all'] | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:9100') | list }}"
+    scrape_interval: "30s"
+    
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+      
+  - job_name: "gitlab"
+    static_configs:
+      - targets: "{{ groups['gitlab'] | default([]) | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:8090') | list }}"
+    metrics_path: "/-/metrics"
+    scrape_interval: "60s"
+    
+  - job_name: "nexus"
+    static_configs:
+      - targets: "{{ groups['nexus'] | default([]) | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:8081') | list }}"
+    metrics_path: "/service/metrics/prometheus"
+    
+  - job_name: "keycloak"
+    static_configs:
+      - targets: "{{ groups['keycloak'] | default([]) | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:8180') | list }}"
+    metrics_path: "/auth/realms/master/metrics"
+    
+  - job_name: "kafka"
+    static_configs:
+      - targets: "{{ groups['kafka'] | default([]) | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:9308') | list }}"
+      
+  - job_name: "redis"
+    static_configs:
+      - targets: "{{ groups['redis'] | default([]) | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | map('regex_replace', '^(.*)$', '\\1:9121') | list }}"
+
+# Alert rules configuration
+alert_rules:
+  enabled: true
+  rules_dir: "{{ prometheus.config_dir }}/rules"
+  
+# Blackbox exporter for endpoint monitoring
+blackbox_exporter:
+  version: "0.24.0"
+  port: 9115
+  user: "blackbox_exporter"
+  group: "blackbox_exporter"
+  
+# Security settings
+prometheus_web_external_url: "http://{{ ansible_default_ipv4.address }}:{{ prometheus.port }}"
+prometheus_web_listen_address: "0.0.0.0:{{ prometheus.port }}"
+
+# Systemd service configuration
+prometheus_service_enabled: true
+prometheus_service_state: "started"

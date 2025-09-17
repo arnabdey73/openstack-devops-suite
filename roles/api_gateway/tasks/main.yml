@@ -1,0 +1,111 @@
+---
+# Kong API Gateway Role for Enterprise Integration
+# Implements API gateway, rate limiting, authentication, and service mesh capabilities
+
+- name: Install Kong dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - curl
+    - wget
+    - postgresql-client
+    - lua5.1
+    - libyaml-dev
+  become: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Add Kong APT repository
+  get_url:
+    url: https://download.konghq.com/gateway-3.x-ubuntu-{{ ansible_distribution_release }}/pool/all/k/kong/kong_{{ kong_version }}_amd64.deb
+    dest: /tmp/kong.deb
+  when: ansible_os_family == 'Debian'
+  become: yes
+
+- name: Install Kong package
+  apt:
+    deb: /tmp/kong.deb
+    state: present
+  when: ansible_os_family == 'Debian'
+  become: yes
+
+- name: Create Kong user
+  user:
+    name: kong
+    system: yes
+    shell: /bin/false
+    home: /opt/kong
+    createhome: no
+  become: yes
+
+- name: Create Kong directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: kong
+    group: kong
+    mode: '0755'
+  loop:
+    - /opt/kong
+    - /opt/kong/config
+    - /opt/kong/logs
+    - /opt/kong/plugins
+    - /etc/kong
+  become: yes
+
+- name: Generate Kong configuration
+  template:
+    src: kong.conf.j2
+    dest: /etc/kong/kong.conf
+    owner: kong
+    group: kong
+    mode: '0644'
+  notify: restart kong
+  become: yes
+
+- name: Initialize Kong database
+  command: kong migrations bootstrap -c /etc/kong/kong.conf
+  become_user: kong
+  become: yes
+  register: kong_migration
+  changed_when: "'migrated' in kong_migration.stdout"
+
+- name: Create Kong systemd service
+  template:
+    src: kong.service.j2
+    dest: /etc/systemd/system/kong.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart kong
+  become: yes
+
+- name: Enable and start Kong service
+  systemd:
+    name: kong
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Wait for Kong to be ready
+  wait_for:
+    host: "{{ kong_admin_host }}"
+    port: "{{ kong_admin_port }}"
+    delay: 10
+    timeout: 60
+
+- name: Install Konga (Kong Admin GUI)
+  include_tasks: install_konga.yml
+  when: kong_admin_gui_enabled | default(true)
+
+- name: Configure Kong services and routes
+  include_tasks: configure_services.yml
+
+- name: Setup Kong plugins
+  include_tasks: configure_plugins.yml
+
+- name: Configure authentication and security
+  include_tasks: configure_security.yml

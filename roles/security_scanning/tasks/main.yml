@@ -1,0 +1,157 @@
+---
+# OWASP ZAP Security Scanner Role
+# Automated security testing integration for DevSecOps pipeline
+
+- name: Install OWASP ZAP dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - openjdk-11-jdk
+    - wget
+    - unzip
+    - python3
+    - python3-pip
+  become: yes
+
+- name: Create zap user
+  user:
+    name: zap
+    system: yes
+    shell: /bin/bash
+    home: /opt/zap
+    createhome: yes
+  become: yes
+
+- name: Create ZAP directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: zap
+    group: zap
+    mode: '0755'
+  loop:
+    - /opt/zap
+    - /opt/zap/config
+    - /opt/zap/reports
+    - /opt/zap/scripts
+    - /opt/zap/policies
+    - /var/log/zap
+  become: yes
+
+- name: Download OWASP ZAP
+  get_url:
+    url: "https://github.com/zaproxy/zaproxy/releases/download/v{{ zap_version }}/ZAP_{{ zap_version }}_Linux.tar.gz"
+    dest: /tmp/zap.tar.gz
+    owner: zap
+    group: zap
+    mode: '0644'
+  become: yes
+
+- name: Extract OWASP ZAP
+  unarchive:
+    src: /tmp/zap.tar.gz
+    dest: /opt/zap
+    remote_src: yes
+    owner: zap
+    group: zap
+    extra_opts: [--strip-components=1]
+  become: yes
+
+- name: Install ZAP Python API
+  pip:
+    name: python-owasp-zap-v2.4
+    executable: pip3
+  become: yes
+
+- name: Install additional security testing tools
+  pip:
+    name:
+      - requests
+      - beautifulsoup4
+      - selenium
+      - pytest
+      - pytest-html
+    executable: pip3
+  become: yes
+
+- name: Create ZAP configuration file
+  template:
+    src: zap_config.xml.j2
+    dest: /opt/zap/config/config.xml
+    owner: zap
+    group: zap
+    mode: '0644'
+  become: yes
+
+- name: Create ZAP security scanning scripts
+  template:
+    src: "{{ item }}.j2"
+    dest: "/opt/zap/scripts/{{ item }}"
+    owner: zap
+    group: zap
+    mode: '0755'
+  loop:
+    - zap_baseline_scan.py
+    - zap_full_scan.py
+    - zap_api_scan.py
+    - zap_report_generator.py
+  become: yes
+
+- name: Create ZAP security policies
+  template:
+    src: "{{ item }}.j2"
+    dest: "/opt/zap/policies/{{ item }}"
+    owner: zap
+    group: zap
+    mode: '0644'
+  loop:
+    - baseline_policy.policy
+    - full_scan_policy.policy
+    - api_security_policy.policy
+  become: yes
+
+- name: Create ZAP systemd service
+  template:
+    src: zap.service.j2
+    dest: /etc/systemd/system/zap.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart zap
+  become: yes
+
+- name: Create ZAP daemon configuration
+  template:
+    src: zap_daemon.conf.j2
+    dest: /opt/zap/config/zap_daemon.conf
+    owner: zap
+    group: zap
+    mode: '0600'
+  become: yes
+
+- name: Enable and start ZAP service
+  systemd:
+    name: zap
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Wait for ZAP to be ready
+  wait_for:
+    host: "{{ zap_host }}"
+    port: "{{ zap_port }}"
+    delay: 15
+    timeout: 60
+
+- name: Configure ZAP for DevOps Suite scanning
+  include_tasks: configure_devops_scanning.yml
+
+- name: Setup ZAP integration with CI/CD
+  include_tasks: configure_cicd_integration.yml
+
+- name: Create security testing automation
+  include_tasks: setup_security_automation.yml

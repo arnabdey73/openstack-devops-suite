@@ -1,0 +1,170 @@
+---
+# HashiCorp Vault secrets management role defaults
+
+# Vault version and installation
+vault_version: "1.15.2"
+vault_user: vault
+vault_group: vault
+
+# Network configuration
+vault_address: "{{ ansible_default_ipv4.address }}"
+vault_port: 8200
+vault_cluster_port: 8201
+vault_api_url: "http://{{ vault_address }}:{{ vault_port }}/v1"
+
+# Vault initialization
+vault_secret_shares: 5
+vault_secret_threshold: 3
+
+# Storage backend configuration
+vault_storage_backend: file
+vault_storage_path: /opt/vault/data
+
+# Logging configuration
+vault_log_level: INFO
+vault_log_file: /opt/vault/logs/vault.log
+
+# UI configuration
+vault_ui_enabled: true
+
+# TLS configuration
+vault_tls_enabled: false
+vault_tls_cert_file: ""
+vault_tls_key_file: ""
+vault_tls_ca_file: ""
+
+# Authentication methods
+vault_configure_auth: true
+vault_kubernetes_auth: false
+vault_ldap_auth: false
+
+# Secret engines
+vault_configure_engines: true
+vault_configure_databases: true
+
+# Policies
+vault_configure_policies: true
+
+# DevOps Suite integrations
+vault_configure_integrations: true
+
+# Admin user configuration
+vault_admin_username: admin
+vault_admin_password: "{{ vault_admin_password | default('admin123') }}"
+
+# Service user passwords (should be overridden in inventory)
+vault_gitlab_password: "{{ gitlab_vault_password | default('gitlab123') }}"
+vault_nexus_password: "{{ nexus_vault_password | default('nexus123') }}"
+vault_keycloak_password: "{{ keycloak_vault_password | default('keycloak123') }}"
+vault_rancher_password: "{{ rancher_vault_password | default('rancher123') }}"
+vault_monitoring_password: "{{ monitoring_vault_password | default('monitoring123') }}"
+
+# PKI configuration
+vault_allowed_domains:
+  - "devops.local"
+  - "*.devops.local"
+  - "localhost"
+
+# Organization information for certificates
+organization_name: "DevOps Suite"
+organization_country: "US"
+
+# Database configuration
+mysql_host: "{{ groups['gitlab'][0] }}"
+mysql_vault_user: vault
+mysql_vault_password: "{{ mysql_vault_pass | default('vault123') }}"
+
+postgresql_host: "{{ groups['keycloak'][0] }}"
+postgresql_vault_user: vault
+postgresql_vault_password: "{{ postgresql_vault_pass | default('vault123') }}"
+
+# Kubernetes integration (if enabled)
+kubernetes_api_url: "https://{{ groups['rancher'][0] }}:6443"
+kubernetes_ca_cert: ""
+kubernetes_jwt_token: ""
+
+# LDAP configuration (if enabled)
+ldap_server_url: ""
+ldap_user_dn: ""
+ldap_user_attr: uid
+ldap_group_dn: ""
+ldap_group_filter: ""
+ldap_group_attr: cn
+ldap_bind_dn: ""
+ldap_bind_password: ""
+ldap_start_tls: true
+ldap_insecure_tls: false
+
+# DevOps Suite service credentials (should be encrypted in ansible-vault)
+gitlab_database_password: "{{ gitlab_db_password }}"
+gitlab_root_password: "{{ gitlab_root_pass }}"
+gitlab_smtp_password: "{{ gitlab_smtp_pass | default('') }}"
+gitlab_runner_token: "{{ gitlab_runner_registration_token | default('') }}"
+gitlab_oauth_secret: "{{ gitlab_oauth_app_secret | default('') }}"
+gitlab_registry_password: "{{ gitlab_container_registry_password | default('') }}"
+
+nexus_admin_password: "{{ nexus_admin_pass }}"
+nexus_database_password: "{{ nexus_db_password | default('') }}"
+nexus_ldap_password: "{{ nexus_ldap_bind_password | default('') }}"
+nexus_docker_password: "{{ nexus_docker_registry_password | default('') }}"
+nexus_npm_token: "{{ nexus_npm_registry_token | default('') }}"
+
+keycloak_admin_password: "{{ keycloak_admin_pass }}"
+keycloak_database_password: "{{ keycloak_db_password }}"
+keycloak_master_secret: "{{ keycloak_master_realm_secret | default('') }}"
+keycloak_smtp_password: "{{ keycloak_smtp_pass | default('') }}"
+keycloak_ldap_password: "{{ keycloak_ldap_bind_password | default('') }}"
+
+rancher_admin_password: "{{ rancher_admin_pass }}"
+rancher_bootstrap_password: "{{ rancher_bootstrap_pass }}"
+rancher_cattle_secret: "{{ rancher_cattle_system_secret | default('') }}"
+rancher_registry_password: "{{ rancher_container_registry_password | default('') }}"
+
+kafka_jmx_password: "{{ kafka_jmx_pass | default('') }}"
+kafka_ssl_keystore_password: "{{ kafka_ssl_keystore_pass | default('') }}"
+kafka_ssl_truststore_password: "{{ kafka_ssl_truststore_pass | default('') }}"
+kafka_sasl_password: "{{ kafka_sasl_pass | default('') }}"
+
+redis_password: "{{ redis_auth_pass | default('') }}"
+redis_sentinel_password: "{{ redis_sentinel_pass | default('') }}"
+redis_ssl_password: "{{ redis_ssl_cert_pass | default('') }}"
+
+grafana_admin_password: "{{ grafana_admin_pass }}"
+prometheus_basic_auth: "{{ prometheus_basic_auth_password | default('') }}"
+alertmanager_webhook_secret: "{{ alertmanager_webhook_secret_key | default('') }}"
+slack_webhook_url: "{{ monitoring_slack_webhook | default('') }}"
+monitoring_email_password: "{{ monitoring_email_pass | default('') }}"
+
+# Database connection details
+gitlab_db_host: "{{ groups['gitlab'][0] }}"
+gitlab_db_port: 3306
+gitlab_db_username: gitlab
+gitlab_db_password: "{{ gitlab_database_password }}"
+gitlab_db_name: gitlab
+
+keycloak_db_host: "{{ groups['keycloak'][0] }}"
+keycloak_db_port: 5432
+keycloak_db_username: keycloak
+keycloak_db_password: "{{ keycloak_database_password }}"
+keycloak_db_name: keycloak
+
+# SSL/TLS certificates (if managed by Vault)
+ssl_certificates_vault: false
+ssl_ca_cert: ""
+ssl_wildcard_cert: ""
+ssl_wildcard_key: ""
+ssl_cert_password: ""
+
+# External API integrations
+github_oauth_client_id: "{{ github_oauth_id | default('') }}"
+github_oauth_client_secret: "{{ github_oauth_secret | default('') }}"
+github_webhook_secret: "{{ github_webhook_secret_key | default('') }}"
+github_api_token: "{{ github_personal_access_token | default('') }}"
+
+docker_registry_username: "{{ docker_hub_username | default('') }}"
+docker_registry_password: "{{ docker_hub_password | default('') }}"
+docker_registry_email: "{{ docker_hub_email | default('') }}"
+
+slack_webhook_url: "{{ slack_integration_webhook | default('') }}"
+slack_bot_token: "{{ slack_bot_access_token | default('') }}"
+slack_app_token: "{{ slack_app_level_token | default('') }}"

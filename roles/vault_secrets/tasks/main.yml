@@ -1,0 +1,156 @@
+---
+# HashiCorp Vault Role for Secrets Management
+# This role deploys and configures Vault for centralized secrets management
+
+- name: Install Vault dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - unzip
+    - curl
+    - jq
+  become: yes
+
+- name: Create vault user
+  user:
+    name: vault
+    system: yes
+    shell: /bin/false
+    home: /opt/vault
+    createhome: no
+  become: yes
+
+- name: Create vault directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: vault
+    group: vault
+    mode: '0755'
+  loop:
+    - /opt/vault
+    - /opt/vault/data
+    - /opt/vault/logs
+    - /opt/vault/config
+    - /opt/vault/policies
+    - /opt/vault/scripts
+  become: yes
+
+- name: Download and install Vault
+  unarchive:
+    src: "https://releases.hashicorp.com/vault/{{ vault_version }}/vault_{{ vault_version }}_linux_amd64.zip"
+    dest: /opt/vault
+    remote_src: yes
+    owner: vault
+    group: vault
+    mode: '0755'
+    creates: /opt/vault/vault
+  become: yes
+
+- name: Create vault binary symlink
+  file:
+    src: /opt/vault/vault
+    dest: /usr/local/bin/vault
+    state: link
+  become: yes
+
+- name: Generate Vault configuration
+  template:
+    src: vault.hcl.j2
+    dest: /opt/vault/config/vault.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+  notify: restart vault
+  become: yes
+
+- name: Generate Vault systemd service
+  template:
+    src: vault.service.j2
+    dest: /etc/systemd/system/vault.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 
+    - reload systemd
+    - restart vault
+  become: yes
+
+- name: Generate Vault environment file
+  template:
+    src: vault.env.j2
+    dest: /opt/vault/config/vault.env
+    owner: vault
+    group: vault
+    mode: '0600'
+  notify: restart vault
+  become: yes
+
+- name: Enable and start Vault service
+  systemd:
+    name: vault
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Wait for Vault to be ready
+  wait_for:
+    host: "{{ vault_address }}"
+    port: "{{ vault_port }}"
+    delay: 10
+    timeout: 60
+
+- name: Check if Vault is initialized
+  uri:
+    url: "{{ vault_api_url }}/sys/seal-status"
+    method: GET
+  register: vault_seal_status
+
+- name: Initialize Vault
+  uri:
+    url: "{{ vault_api_url }}/sys/init"
+    method: POST
+    body_format: json
+    body:
+      secret_shares: "{{ vault_secret_shares }}"
+      secret_threshold: "{{ vault_secret_threshold }}"
+  register: vault_init_result
+  when: not vault_seal_status.json.initialized
+
+- name: Save Vault keys and root token
+  copy:
+    content: "{{ vault_init_result.json | to_nice_json }}"
+    dest: /opt/vault/config/vault_keys.json
+    owner: vault
+    group: vault
+    mode: '0600'
+  when: vault_init_result is defined and vault_init_result.json is defined
+  become: yes
+
+- name: Unseal Vault
+  uri:
+    url: "{{ vault_api_url }}/sys/unseal"
+    method: POST
+    body_format: json
+    body:
+      key: "{{ item }}"
+  loop: "{{ vault_init_result.json.keys[:vault_secret_threshold] }}"
+  when: vault_init_result is defined and vault_init_result.json is defined
+
+- name: Configure Vault authentication methods
+  include_tasks: configure_auth_methods.yml
+  when: vault_configure_auth | default(true)
+
+- name: Configure Vault secret engines
+  include_tasks: configure_secret_engines.yml
+  when: vault_configure_engines | default(true)
+
+- name: Configure Vault policies
+  include_tasks: configure_policies.yml
+  when: vault_configure_policies | default(true)
+
+- name: Setup DevOps Suite integrations
+  include_tasks: configure_devops_integrations.yml
+  when: vault_configure_integrations | default(true)

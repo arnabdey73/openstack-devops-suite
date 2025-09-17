@@ -1,0 +1,147 @@
+# Application Alert Rules for DevOps Suite Services
+groups:
+  - name: applications.rules
+    rules:
+      # HTTP endpoint monitoring
+      - alert: HTTPEndpointDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP endpoint down: {{ $labels.instance }}"
+          description: "HTTP endpoint {{ $labels.instance }} has been down for more than 5 minutes."
+
+      - alert: HTTPSlowResponse
+        expr: probe_http_duration_seconds{job="blackbox-http"} > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow HTTP response: {{ $labels.instance }}"
+          description: "HTTP endpoint {{ $labels.instance }} is responding slowly ({{ $value }}s)."
+
+      # GitLab-specific alerts
+      - alert: GitLabDown
+        expr: probe_success{job="blackbox-http", instance=~".*:8090"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: gitlab
+        annotations:
+          summary: "GitLab service is down"
+          description: "GitLab service on {{ $labels.instance }} has been unreachable for more than 3 minutes."
+
+      - alert: GitLabHighCPU
+        expr: rate(process_cpu_seconds_total{job="gitlab"}[5m]) * 100 > 80
+        for: 15m
+        labels:
+          severity: warning
+          service: gitlab
+        annotations:
+          summary: "GitLab high CPU usage"
+          description: "GitLab process CPU usage is above 80% on {{ $labels.instance }}."
+
+      # Nexus Repository alerts
+      - alert: NexusDown
+        expr: probe_success{job="blackbox-http", instance=~".*:8081"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: nexus
+        annotations:
+          summary: "Nexus Repository is down"
+          description: "Nexus Repository on {{ $labels.instance }} has been unreachable for more than 5 minutes."
+
+      # Keycloak alerts
+      - alert: KeycloakDown
+        expr: probe_success{job="blackbox-http", instance=~".*:8180"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: keycloak
+        annotations:
+          summary: "Keycloak service is down"
+          description: "Keycloak service on {{ $labels.instance }} has been unreachable for more than 5 minutes."
+
+      # Rancher alerts  
+      - alert: RancherDown
+        expr: probe_success{job="blackbox-http", instance=~".*:8443"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: rancher
+        annotations:
+          summary: "Rancher service is down"
+          description: "Rancher service on {{ $labels.instance }} has been unreachable for more than 5 minutes."
+
+      # Kafka alerts
+      - alert: KafkaDown
+        expr: probe_success{job="blackbox-tcp", instance=~".*:9092"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: kafka
+        annotations:
+          summary: "Kafka broker is down"
+          description: "Kafka broker on {{ $labels.instance }} has been unreachable for more than 3 minutes."
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: probe_success{job="blackbox-tcp", instance=~".*:6379"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis service is down"
+          description: "Redis service on {{ $labels.instance }} has been unreachable for more than 3 minutes."
+
+      # TCP connection alerts
+      - alert: TCPConnectFailed
+        expr: probe_success{job="blackbox-tcp"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TCP connection failed: {{ $labels.instance }}"
+          description: "TCP connection to {{ $labels.instance }} has failed for more than 5 minutes."
+
+      # SSL certificate expiry alerts
+      - alert: SSLCertificateExpiry
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+        for: 12h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expires soon: {{ $labels.instance }}"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value }} days."
+
+      - alert: SSLCertificateExpiryCritical
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL certificate expires very soon: {{ $labels.instance }}"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value }} days."
+
+      # Application performance alerts
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time on {{ $labels.instance }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.instance }}."
+
+      # Error rate alerts
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.instance }}"
+          description: "Error rate is {{ $value }}% on {{ $labels.instance }}."

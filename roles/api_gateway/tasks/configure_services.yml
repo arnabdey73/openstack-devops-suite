@@ -1,0 +1,209 @@
+---
+# Configure Kong services and routes for DevOps Suite
+
+- name: Configure GitLab service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: gitlab-service
+      url: "http://{{ groups['gitlab'][0] }}:8090"
+      protocol: http
+      host: "{{ groups['gitlab'][0] }}"
+      port: 8090
+      path: "/"
+    status_code: [201, 409]
+  register: gitlab_service
+
+- name: Create GitLab route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/gitlab-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: gitlab-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["gitlab.{{ kong_domain }}"]
+      paths: ["/gitlab"]
+      strip_path: true
+    status_code: [201, 409]
+
+- name: Configure Nexus service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: nexus-service
+      url: "http://{{ groups['nexus'][0] }}:8081"
+      protocol: http
+      host: "{{ groups['nexus'][0] }}"
+      port: 8081
+      path: "/"
+    status_code: [201, 409]
+
+- name: Create Nexus route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/nexus-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: nexus-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["nexus.{{ kong_domain }}"]
+      paths: ["/nexus"]
+      strip_path: true
+    status_code: [201, 409]
+
+- name: Configure Keycloak service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: keycloak-service
+      url: "http://{{ groups['keycloak'][0] }}:8180"
+      protocol: http
+      host: "{{ groups['keycloak'][0] }}"
+      port: 8180
+      path: "/"
+    status_code: [201, 409]
+
+- name: Create Keycloak route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/keycloak-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: keycloak-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["auth.{{ kong_domain }}"]
+      paths: ["/auth"]
+      strip_path: false
+    status_code: [201, 409]
+
+- name: Configure Rancher service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: rancher-service
+      url: "https://{{ groups['rancher'][0] }}:8443"
+      protocol: https
+      host: "{{ groups['rancher'][0] }}"
+      port: 8443
+      path: "/"
+    status_code: [201, 409]
+
+- name: Create Rancher route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/rancher-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: rancher-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["rancher.{{ kong_domain }}"]
+      paths: ["/rancher"]
+      strip_path: true
+    status_code: [201, 409]
+
+- name: Configure Grafana service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: grafana-service
+      url: "http://{{ groups['prometheus'][0] }}:3000"
+      protocol: http
+      host: "{{ groups['prometheus'][0] }}"
+      port: 3000
+      path: "/"
+    status_code: [201, 409]
+
+- name: Create Grafana route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/grafana-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: grafana-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["grafana.{{ kong_domain }}"]
+      paths: ["/grafana"]
+      strip_path: true
+    status_code: [201, 409]
+
+- name: Configure Prometheus service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: prometheus-service
+      url: "http://{{ groups['prometheus'][0] }}:9090"
+      protocol: http
+      host: "{{ groups['prometheus'][0] }}"
+      port: 9090
+      path: "/"
+    status_code: [201, 409]
+
+- name: Create Prometheus route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/prometheus-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: prometheus-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST"]
+      hosts: ["prometheus.{{ kong_domain }}"]
+      paths: ["/prometheus"]
+      strip_path: true
+    status_code: [201, 409]
+
+- name: Configure API endpoints service
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: POST
+    body_format: json
+    body:
+      name: api-service
+      url: "http://{{ groups['nginx'][0] }}/api"
+      protocol: http
+      host: "{{ groups['nginx'][0] }}"
+      port: 80
+      path: "/api"
+    status_code: [201, 409]
+
+- name: Create API route
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services/api-service/routes"
+    method: POST
+    body_format: json
+    body:
+      name: api-route
+      protocols: ["http", "https"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      hosts: ["api.{{ kong_domain }}"]
+      paths: ["/v1", "/v2"]
+      strip_path: false
+    status_code: [201, 409]
+
+- name: Verify Kong services configuration
+  uri:
+    url: "http://{{ kong_admin_host }}:{{ kong_admin_port }}/services"
+    method: GET
+  register: kong_services_list
+
+- name: Display configured services
+  debug:
+    msg: "Configured Kong services: {{ kong_services_list.json.data | map(attribute='name') | list }}"

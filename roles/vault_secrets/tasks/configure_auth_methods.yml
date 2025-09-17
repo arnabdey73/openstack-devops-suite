@@ -1,0 +1,124 @@
+---
+# Vault authentication method configuration
+
+- name: Enable userpass authentication
+  uri:
+    url: "{{ vault_api_url }}/sys/auth/userpass"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: userpass
+    status_code: [200, 204, 400]
+
+- name: Enable approle authentication for applications
+  uri:
+    url: "{{ vault_api_url }}/sys/auth/approle"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: approle
+    status_code: [200, 204, 400]
+
+- name: Enable kubernetes authentication for K8s integration
+  uri:
+    url: "{{ vault_api_url }}/sys/auth/kubernetes"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: kubernetes
+    status_code: [200, 204, 400]
+  when: vault_kubernetes_auth | default(false)
+
+- name: Configure kubernetes auth method
+  uri:
+    url: "{{ vault_api_url }}/auth/kubernetes/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      kubernetes_host: "{{ kubernetes_api_url }}"
+      kubernetes_ca_cert: "{{ kubernetes_ca_cert }}"
+      token_reviewer_jwt: "{{ kubernetes_jwt_token }}"
+    status_code: [200, 204]
+  when: vault_kubernetes_auth | default(false)
+
+- name: Enable LDAP authentication for enterprise integration
+  uri:
+    url: "{{ vault_api_url }}/sys/auth/ldap"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: ldap
+    status_code: [200, 204, 400]
+  when: vault_ldap_auth | default(false)
+
+- name: Configure LDAP authentication
+  uri:
+    url: "{{ vault_api_url }}/auth/ldap/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      url: "{{ ldap_server_url }}"
+      userdn: "{{ ldap_user_dn }}"
+      userattr: "{{ ldap_user_attr | default('uid') }}"
+      groupdn: "{{ ldap_group_dn }}"
+      groupfilter: "{{ ldap_group_filter }}"
+      groupattr: "{{ ldap_group_attr | default('cn') }}"
+      binddn: "{{ ldap_bind_dn }}"
+      bindpass: "{{ ldap_bind_password }}"
+      starttls: "{{ ldap_start_tls | default(true) }}"
+      insecure_tls: "{{ ldap_insecure_tls | default(false) }}"
+    status_code: [200, 204]
+  when: vault_ldap_auth | default(false)
+
+- name: Create admin user for userpass auth
+  uri:
+    url: "{{ vault_api_url }}/auth/userpass/users/{{ vault_admin_username }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      password: "{{ vault_admin_password }}"
+      policies: "admin,devops-suite"
+    status_code: [200, 204]
+
+- name: Create service users for DevOps Suite components
+  uri:
+    url: "{{ vault_api_url }}/auth/userpass/users/{{ item.username }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      password: "{{ item.password }}"
+      policies: "{{ item.policies | join(',') }}"
+    status_code: [200, 204]
+  loop:
+    - username: gitlab
+      password: "{{ vault_gitlab_password }}"
+      policies: ["gitlab-secrets", "database-read"]
+    - username: nexus
+      password: "{{ vault_nexus_password }}"
+      policies: ["nexus-secrets", "database-read"]
+    - username: keycloak
+      password: "{{ vault_keycloak_password }}"
+      policies: ["keycloak-secrets", "database-read"]
+    - username: rancher
+      password: "{{ vault_rancher_password }}"
+      policies: ["rancher-secrets", "k8s-secrets"]
+    - username: monitoring
+      password: "{{ vault_monitoring_password }}"
+      policies: ["monitoring-secrets", "alert-secrets"]
+  no_log: true

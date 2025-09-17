@@ -1,0 +1,85 @@
+---
+# Alertmanager Installation and Configuration
+
+- name: Create alertmanager system user
+  user:
+    name: "{{ alertmanager.user }}"
+    system: true
+    shell: "/bin/false"
+    group: "{{ alertmanager.group }}"
+    createhome: false
+    home: "{{ alertmanager.data_dir }}"
+    state: present
+
+- name: Create alertmanager group
+  group:
+    name: "{{ alertmanager.group }}"
+    system: true
+    state: present
+
+- name: Create alertmanager directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ alertmanager.user }}"
+    group: "{{ alertmanager.group }}"
+    mode: '0755'
+  loop:
+    - "{{ alertmanager.config_dir }}"
+    - "{{ alertmanager.data_dir }}"
+
+- name: Download and install Alertmanager
+  unarchive:
+    src: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager.version }}/alertmanager-{{ alertmanager.version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+    creates: "/tmp/alertmanager-{{ alertmanager.version }}.linux-amd64"
+  register: alertmanager_download
+
+- name: Copy alertmanager binaries
+  copy:
+    src: "/tmp/alertmanager-{{ alertmanager.version }}.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    owner: root
+    group: root
+    remote_src: true
+  loop:
+    - alertmanager
+    - amtool
+  when: alertmanager_download.changed
+
+- name: Generate alertmanager configuration
+  template:
+    src: alertmanager.yml.j2
+    dest: "{{ alertmanager.config_dir }}/alertmanager.yml"
+    owner: "{{ alertmanager.user }}"
+    group: "{{ alertmanager.group }}"
+    mode: '0644'
+  notify: restart alertmanager
+
+- name: Create alertmanager systemd service
+  template:
+    src: alertmanager.service.j2
+    dest: /etc/systemd/system/alertmanager.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart alertmanager
+
+- name: Enable and start alertmanager service
+  systemd:
+    name: alertmanager
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Configure firewall for Alertmanager
+  ufw:
+    rule: allow
+    port: "{{ alertmanager.port }}"
+    proto: tcp
+    comment: "Alertmanager notifications"
+  when: ansible_os_family == "Debian"
