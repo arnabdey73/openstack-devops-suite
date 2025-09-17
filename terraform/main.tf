@@ -1,4 +1,4 @@
-# GitLab-Centered DevOps Suite Infrastructure for VMware OpenStack
+# Jenkins & Gitea-Centered DevOps Suite Infrastructure for VMware OpenStack
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -88,12 +88,32 @@ resource "openstack_networking_secgroup_rule_v2" "https" {
   security_group_id = openstack_networking_secgroup_v2.devops_suite.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gitlab" {
+resource "openstack_networking_secgroup_rule_v2" "gitea_http" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
-  port_range_min    = 8090
-  port_range_max    = 8090
+  port_range_min    = 3000
+  port_range_max    = 3000
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.devops_suite.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gitea_ssh" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 2222
+  port_range_max    = 2222
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.devops_suite.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "jenkins" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8080
+  port_range_max    = 8080
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.devops_suite.id
 }
@@ -155,9 +175,14 @@ resource "openstack_compute_keypair_v2" "devops_suite" {
 }
 
 # Floating IPs for external access
-resource "openstack_networking_floatingip_v2" "gitlab_fip" {
+resource "openstack_networking_floatingip_v2" "gitea_fip" {
   pool = data.openstack_networking_network_v2.external.name
-  tags = ["service:gitlab", "environment:${var.environment_name}"]
+  tags = ["service:gitea", "environment:${var.environment_name}"]
+}
+
+resource "openstack_networking_floatingip_v2" "jenkins_fip" {
+  pool = data.openstack_networking_network_v2.external.name
+  tags = ["service:jenkins", "environment:${var.environment_name}"]
 }
 
 resource "openstack_networking_floatingip_v2" "nginx_fip" {
@@ -181,11 +206,21 @@ resource "openstack_networking_floatingip_v2" "rancher_fip" {
 }
 
 # Persistent volumes for data storage
-resource "openstack_blockstorage_volume_v3" "gitlab_data" {
-  name = "${var.environment_name}-gitlab-data"
-  size = var.gitlab_volume_size
+resource "openstack_blockstorage_volume_v3" "gitea_data" {
+  name = "${var.environment_name}-gitea-data"
+  size = var.gitea_volume_size
   metadata = {
-    service     = "gitlab"
+    service     = "gitea"
+    environment = var.environment_name
+    purpose     = "data-storage"
+  }
+}
+
+resource "openstack_blockstorage_volume_v3" "jenkins_data" {
+  name = "${var.environment_name}-jenkins-data"
+  size = var.jenkins_volume_size
+  metadata = {
+    service     = "jenkins"
     environment = var.environment_name
     purpose     = "data-storage"
   }
@@ -211,9 +246,40 @@ resource "openstack_blockstorage_volume_v3" "keycloak_data" {
   }
 }
 
-# GitLab server (primary CI/CD and SCM)
-resource "openstack_compute_instance_v2" "gitlab" {
-  name            = "${var.environment_name}-gitlab"
+# Gitea self-hosted Git repository server
+resource "openstack_compute_instance_v2" "gitea" {
+  name            = "${var.environment_name}-gitea"
+  image_id        = data.openstack_images_image_v2.ubuntu.id
+  flavor_id       = data.openstack_compute_flavor_v2.small.id
+  key_pair        = openstack_compute_keypair_v2.devops_suite.name
+  security_groups = [openstack_networking_secgroup_v2.devops_suite.name]
+
+  network {
+    name = data.openstack_networking_network_v2.external.name
+  }
+
+  user_data = templatefile("${path.module}/templates/cloud-init.yml.tpl", {
+    environment_name = var.environment_name
+    service_name     = "gitea"
+    vmware_enabled   = var.enable_vmware_tools
+  })
+
+  metadata = {
+    vmware_tools_install = "true"
+    vm_type              = "gitea-scm"
+    environment          = var.environment_name
+  }
+
+  tags = [
+    "service:gitea",
+    "environment:${var.environment_name}",
+    "role:scm"
+  ]
+}
+
+# Jenkins CI/CD server
+resource "openstack_compute_instance_v2" "jenkins" {
+  name            = "${var.environment_name}-jenkins"
   image_id        = data.openstack_images_image_v2.ubuntu.id
   flavor_id       = data.openstack_compute_flavor_v2.medium.id
   key_pair        = openstack_compute_keypair_v2.devops_suite.name
@@ -225,33 +291,45 @@ resource "openstack_compute_instance_v2" "gitlab" {
 
   user_data = templatefile("${path.module}/templates/cloud-init.yml.tpl", {
     environment_name = var.environment_name
-    service_name     = "gitlab"
+    service_name     = "jenkins"
     vmware_enabled   = var.enable_vmware_tools
   })
 
   metadata = {
     vmware_tools_install = "true"
-    vm_type              = "gitlab-ci-cd"
+    vm_type              = "jenkins-cicd"
     environment          = var.environment_name
   }
 
   tags = [
-    "service:gitlab",
+    "service:jenkins",
     "environment:${var.environment_name}",
-    "role:ci-cd-scm"
+    "role:ci-cd"
   ]
 }
 
-# Attach GitLab data volume
-resource "openstack_compute_volume_attach_v2" "gitlab_data_attach" {
-  instance_id = openstack_compute_instance_v2.gitlab.id
-  volume_id   = openstack_blockstorage_volume_v3.gitlab_data.id
+# Attach Gitea data volume
+resource "openstack_compute_volume_attach_v2" "gitea_data_attach" {
+  instance_id = openstack_compute_instance_v2.gitea.id
+  volume_id   = openstack_blockstorage_volume_v3.gitea_data.id
 }
 
-# Associate floating IP with GitLab
-resource "openstack_networking_floatingip_associate_v2" "gitlab_fip_associate" {
-  floating_ip = openstack_networking_floatingip_v2.gitlab_fip.address
-  port_id     = openstack_compute_instance_v2.gitlab.network[0].port
+# Attach Jenkins data volume
+resource "openstack_compute_volume_attach_v2" "jenkins_data_attach" {
+  instance_id = openstack_compute_instance_v2.jenkins.id
+  volume_id   = openstack_blockstorage_volume_v3.jenkins_data.id
+}
+
+# Associate floating IP with Gitea
+resource "openstack_networking_floatingip_associate_v2" "gitea_fip_associate" {
+  floating_ip = openstack_networking_floatingip_v2.gitea_fip.address
+  port_id     = openstack_compute_instance_v2.gitea.network[0].port
+}
+
+# Associate floating IP with Jenkins
+resource "openstack_networking_floatingip_associate_v2" "jenkins_fip_associate" {
+  floating_ip = openstack_networking_floatingip_v2.jenkins_fip.address
+  port_id     = openstack_compute_instance_v2.jenkins.network[0].port
 }
 
 # Nexus repository manager

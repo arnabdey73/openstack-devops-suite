@@ -1,0 +1,66 @@
+---
+# Jenkins CI/CD configuration defaults
+jenkins_home: "/var/lib/jenkins"
+jenkins_user: "jenkins"
+jenkins_group: "jenkins"
+jenkins_port: 8080
+jenkins_host: "{{ ansible_default_ipv4.address }}"
+jenkins_url: "http://{{ jenkins_host }}:{{ jenkins_port }}"
+
+# Jenkins version and repository
+jenkins_repo_url: "https://pkg.jenkins.io/debian"
+jenkins_repo_key_url: "https://pkg.jenkins.io/debian/jenkins.io-2023.key"
+jenkins_package_state: present
+
+# Jenkins admin configuration
+jenkins_admin_username: "admin"
+jenkins_admin_password: "{{ jenkins_admin_password | default('ChangeMe123!') }}"
+
+# Jenkins plugins to install
+jenkins_plugins:
+  - git
+  - gitea
+  - github
+  - pipeline-stage-view
+  - workflow-aggregator
+  - docker-plugin
+  - kubernetes
+  - blueocean
+  - build-timeout
+  - credentials-binding
+  - timestamper
+  - ws-cleanup
+  - ant
+  - gradle
+  - generic-webhook-trigger
+  - workflow-multibranch
+
+# Jenkins Java configuration
+jenkins_java_options: "-Djenkins.install.runSetupWizard=false -Djava.awt.headless=true"
+
+# Jenkins security
+jenkins_security_realm: "local"
+jenkins_authorization_strategy: "loggedInUsersCanDoAnything"
+
+# Gitea integration configuration
+gitea_server_url: "{{ gitea_url | default('http://localhost:3000') }}"
+gitea_webhook_secret: "{{ gitea_webhook_secret_vault | default('gitea-jenkins-webhook-secret') }}"
+gitea_api_token: "{{ gitea_api_token_vault | default('') }}"
+
+# Jenkins-Gitea integration settings
+jenkins_gitea_connection_name: "gitea-server"
+jenkins_create_sample_jobs: true
+gitlab_group: git
+
+# Installation directories
+gitlab_home: /var/opt/gitlab
+gitlab_config_dir: /etc/gitlab
+gitlab_log_dir: /var/log/gitlab
+
+# Backup configuration
+gitlab_backup_keep_time: 604800  # 7 days
+gitlab_backup_path: "{{ gitlab_home }}/backups"
+
+# SSL configuration (if needed)
+
+

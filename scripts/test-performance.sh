@@ -114,14 +114,14 @@ discover_endpoints() {
     if [[ -f "$PROJECT_ROOT/terraform/terraform.tfstate" ]]; then
         cd "$PROJECT_ROOT/terraform"
         
-        local gitlab_ip=$(terraform output -raw gitlab_floating_ip 2>/dev/null || echo "")
+        local jenkins_ip=$(terraform output -raw jenkins_floating_ip 2>/dev/null || echo "")
         local nginx_ip=$(terraform output -raw nginx_floating_ip 2>/dev/null || echo "")
         local nexus_ip=$(terraform output -raw nexus_floating_ip 2>/dev/null || echo "")
         local keycloak_ip=$(terraform output -raw keycloak_floating_ip 2>/dev/null || echo "")
         local rancher_ip=$(terraform output -raw rancher_floating_ip 2>/dev/null || echo "")
         
-        if [[ -n "$gitlab_ip" && "$gitlab_ip" != "null" ]]; then
-            endpoints+=("http://$gitlab_ip:8090|GitLab VM")
+        if [[ -n "$jenkins_ip" && "$jenkins_ip" != "null" ]]; then
+            endpoints+=("http://$jenkins_ip:8080|Jenkins VM")
         fi
         
         if [[ -n "$nginx_ip" && "$nginx_ip" != "null" ]]; then
@@ -147,7 +147,7 @@ discover_endpoints() {
         
         if [[ -n "$ingress_ip" && "$ingress_ip" != "null" ]]; then
             local domain=${DOMAIN_NAME:-"yourdomain.com"}
-            endpoints+=("http://$ingress_ip|GitLab K8s|gitlab.$domain")
+            endpoints+=("http://$ingress_ip|Jenkins K8s|jenkins.$domain")
             endpoints+=("http://$ingress_ip|Dashboard K8s|dashboard.$domain")
             endpoints+=("http://$ingress_ip|Nexus K8s|nexus.$domain")
             endpoints+=("http://$ingress_ip|Keycloak K8s|keycloak.$domain")

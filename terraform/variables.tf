@@ -91,10 +91,16 @@ variable "enable_vmware_tools" {
 }
 
 # Volume sizes for persistent storage
-variable "gitlab_volume_size" {
-  description = "Size of GitLab data volume in GB"
+variable "gitea_volume_size" {
+  description = "Size of Gitea data volume in GB"
   type        = number
-  default     = 50
+  default     = 20
+}
+
+variable "jenkins_volume_size" {
+  description = "Size of Jenkins data volume in GB"
+  type        = number
+  default     = 30
 }
 
 variable "nexus_volume_size" {

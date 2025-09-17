@@ -1,0 +1,115 @@
+# Gitea Configuration
+# {{ ansible_managed }}
+
+APP_NAME = {{ gitea_app_name }}
+RUN_MODE = {{ gitea_run_mode }}
+
+[repository]
+ROOT = {{ gitea_repository_root }}
+DEFAULT_BRANCH = {{ gitea_default_branch }}
+
+[repository.local]
+LOCAL_COPY_PATH = {{ gitea_home }}/tmp/local-repo
+
+[repository.upload]
+TEMP_PATH = {{ gitea_home }}/data/tmp/uploads
+FILE_MAX_SIZE = {{ gitea_max_file_size }}
+
+[server]
+APP_DATA_PATH = {{ gitea_home }}/data
+DOMAIN = {{ gitea_domain }}
+HTTP_PORT = {{ gitea_http_port }}
+ROOT_URL = {{ gitea_root_url }}
+DISABLE_SSH = false
+START_SSH_SERVER = false
+SSH_PORT = {{ gitea_ssh_port }}
+SSH_LISTEN_PORT = {{ gitea_ssh_port }}
+OFFLINE_MODE = false
+
+[database]
+PATH = {{ gitea_database_path }}
+DB_TYPE = {{ gitea_database_type }}
+LOG_SQL = false
+
+[indexer]
+ISSUE_INDEXER_PATH = {{ gitea_home }}/indexers/issues.bleve
+
+[session]
+PROVIDER_CONFIG = {{ gitea_home }}/data/sessions
+PROVIDER = file
+
+[picture]
+AVATAR_UPLOAD_PATH = {{ gitea_home }}/data/avatars
+REPOSITORY_AVATAR_UPLOAD_PATH = {{ gitea_home }}/data/repo-avatars
+
+[attachment]
+PATH = {{ gitea_home }}/data/attachments
+
+[log]
+MODE = file
+LEVEL = Info
+ROOT_PATH = {{ gitea_log_dir }}
+
+[security]
+INSTALL_LOCK = true
+SECRET_KEY = {{ gitea_secret_key }}
+PASSWORD_COMPLEXITY = off
+
+[service]
+DISABLE_REGISTRATION = {{ gitea_disable_registration | lower }}
+REQUIRE_SIGNIN_VIEW = {{ gitea_require_signin_view | lower }}
+REGISTER_EMAIL_CONFIRM = false
+ENABLE_NOTIFY_MAIL = false
+ALLOW_ONLY_EXTERNAL_REGISTRATION = false
+ENABLE_CAPTCHA = {{ gitea_enable_captcha | lower }}
+DEFAULT_KEEP_EMAIL_PRIVATE = false
+DEFAULT_ALLOW_CREATE_ORGANIZATION = true
+DEFAULT_ENABLE_TIMETRACKING = true
+NO_REPLY_ADDRESS = noreply.{{ gitea_domain }}
+
+[webhook]
+ALLOWED_HOST_LIST = {{ gitea_webhook_allowed_hosts }}
+SKIP_TLS_VERIFY = {{ gitea_webhook_skip_tls_verify | lower }}
+
+[mailer]
+ENABLED = {{ gitea_mailer_enabled | lower }}
+{% if gitea_mailer_enabled %}
+HOST = {{ gitea_mailer_host }}
+USER = {{ gitea_mailer_user }}
+PASSWD = {{ gitea_mailer_password }}
+{% endif %}
+
+[cache]
+ENABLED = true
+ADAPTER = memory
+
+[cache.last_commit]
+ENABLED = true
+ITEM_TTL = 8760h
+
+[oauth2]
+ENABLE = {{ gitea_oauth2_enabled | lower }}
+
+[openid]
+ENABLE_OPENID_SIGNIN = {{ gitea_openid_signin | lower }}
+
+[actions]
+ENABLED = {{ gitea_actions_enabled | lower }}
+DEFAULT_ACTIONS_URL = https://gitea.com
+
+{% if gitea_lfs_enabled %}
+[lfs]
+START_SERVER = true
+PATH = {{ gitea_home }}/data/lfs
+{% endif %}
+
+[git]
+PATH = /usr/bin/git
+
+[git.timeout]
+DEFAULT = 360
+MIGRATE = 600
+MIRROR = 300
+CLONE = 300
+PULL = 300
+GC = 60

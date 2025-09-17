@@ -1,0 +1,36 @@
+---
+# Gitea service handlers
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+  become: true
+  listen: reload systemd
+
+- name: restart gitea
+  systemd:
+    name: gitea
+    state: restarted
+  become: true
+  listen: restart gitea
+
+- name: start gitea
+  systemd:
+    name: gitea
+    state: started
+  become: true
+  listen: start gitea
+
+- name: stop gitea
+  systemd:
+    name: gitea
+    state: stopped
+  become: true
+  listen: stop gitea
+
+- name: reload gitea
+  systemd:
+    name: gitea
+    state: reloaded
+  become: true
+  listen: reload gitea

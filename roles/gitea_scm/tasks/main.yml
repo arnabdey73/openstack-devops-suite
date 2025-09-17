@@ -1,0 +1,153 @@
+---
+# Gitea SCM installation and configuration tasks
+
+- name: Create gitea system user
+  user:
+    name: "{{ gitea_user }}"
+    group: "{{ gitea_group }}"
+    home: "{{ gitea_home }}"
+    shell: /bin/bash
+    system: true
+    create_home: true
+  become: true
+
+- name: Install required packages
+  package:
+    name:
+      - git
+      - curl
+      - wget
+      - sqlite3
+      - openssh-server
+      - ca-certificates
+    state: present
+  become: true
+
+- name: Create gitea directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ gitea_user }}"
+    group: "{{ gitea_group }}"
+    mode: '0755'
+  become: true
+  loop:
+    - "{{ gitea_config_dir }}"
+    - "{{ gitea_data_dir }}"
+    - "{{ gitea_log_dir }}"
+    - "{{ gitea_home }}/data"
+    - "{{ gitea_home }}/custom"
+    - "{{ gitea_home }}/custom/conf"
+
+- name: Download Gitea binary
+  get_url:
+    url: "{{ gitea_binary_url }}"
+    dest: "{{ gitea_binary_dir }}/gitea"
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  notify: restart gitea
+
+- name: Create Gitea configuration file
+  template:
+    src: app.ini.j2
+    dest: "{{ gitea_config_dir }}/app.ini"
+    owner: "{{ gitea_user }}"
+    group: "{{ gitea_group }}"
+    mode: '0640'
+  become: true
+  notify: restart gitea
+
+- name: Create Gitea systemd service file
+  template:
+    src: gitea.service.j2
+    dest: /etc/systemd/system/gitea.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify:
+    - reload systemd
+    - restart gitea
+
+- name: Ensure Gitea service is started and enabled
+  systemd:
+    name: gitea
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+
+- name: Wait for Gitea to be available
+  uri:
+    url: "{{ gitea_root_url }}"
+    method: GET
+    status_code: 200
+  register: gitea_check
+  until: gitea_check.status == 200
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Check if Gitea is already installed
+  uri:
+    url: "{{ gitea_root_url }}install"
+    method: GET
+  register: gitea_install_check
+  failed_when: false
+
+- name: Initialize Gitea database and admin user
+  uri:
+    url: "{{ gitea_root_url }}install"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      db_type: "{{ gitea_database_type }}"
+      db_path: "{{ gitea_database_path }}"
+      app_name: "{{ gitea_app_name }}"
+      repo_root_path: "{{ gitea_repository_root }}"
+      run_user: "{{ gitea_user }}"
+      domain: "{{ gitea_domain }}"
+      ssh_port: "{{ gitea_ssh_port }}"
+      http_port: "{{ gitea_http_port }}"
+      app_url: "{{ gitea_root_url }}"
+      admin_name: "{{ gitea_admin_username }}"
+      admin_passwd: "{{ gitea_admin_password }}"
+      admin_confirm_passwd: "{{ gitea_admin_password }}"
+      admin_email: "{{ gitea_admin_email }}"
+  when: gitea_install_check.status == 200
+  ignore_errors: true
+
+- name: Configure firewall for Gitea HTTP
+  ufw:
+    rule: allow
+    port: "{{ gitea_http_port }}"
+    proto: tcp
+  become: true
+  when: ansible_os_family == 'Debian'
+
+- name: Configure firewall for Gitea SSH
+  ufw:
+    rule: allow
+    port: "{{ gitea_ssh_port }}"
+    proto: tcp
+  become: true
+  when: ansible_os_family == 'Debian'
+
+- name: Create backup directory
+  file:
+    path: /var/backups/gitea
+    state: directory
+    owner: "{{ gitea_user }}"
+    group: "{{ gitea_group }}"
+    mode: '0750'
+  become: true
+
+- name: Display Gitea access information
+  debug:
+    msg:
+      - "Gitea is now available at: {{ gitea_root_url }}"
+      - "Admin username: {{ gitea_admin_username }}"
+      - "SSH clone URL format: ssh://git@{{ gitea_domain }}:{{ gitea_ssh_port }}/username/repo.git"
+      - "HTTP clone URL format: {{ gitea_root_url }}username/repo.git"

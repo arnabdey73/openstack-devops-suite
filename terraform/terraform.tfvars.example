@@ -1,4 +1,4 @@
-# GitLab-Centered DevOps Suite for VMware OpenStack Infrastructure
+# Jenkins & Gitea DevOps Suite for VMware OpenStack Infrastructure
 
 # OpenStack Authentication (VMware Integrated OpenStack)
 auth_url             = "${OS_AUTH_URL}"
@@ -9,7 +9,7 @@ user_domain_name     = "${OS_USER_DOMAIN_NAME}"
 project_domain_name  = "${OS_PROJECT_DOMAIN_NAME}"
 
 # Environment Configuration
-environment_name        = "gitlab-devops"
+environment_name        = "jenkins-gitea-devops"
 image_name             = "Ubuntu 22.04 LTS"
 flavor_name            = "m1.medium"
 external_network_name  = "public"
@@ -22,7 +22,8 @@ vm_anti_affinity       = true
 enable_vmware_tools    = true
 
 # Volume Configuration (GB)
-gitlab_volume_size     = 50
+gitea_volume_size      = 20
+jenkins_volume_size    = 30
 nexus_volume_size      = 30
 keycloak_volume_size   = 10
 

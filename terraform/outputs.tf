@@ -1,9 +1,14 @@
 # Outputs for VMware OpenStack DevOps Suite Infrastructure
 
 # Floating IP addresses for external access
-output "gitlab_floating_ip" {
-  description = "GitLab server floating IP address (Primary CI/CD and SCM)"
-  value       = openstack_networking_floatingip_v2.gitlab_fip.address
+output "gitea_floating_ip" {
+  description = "Gitea Git repository floating IP address"
+  value       = openstack_networking_floatingip_v2.gitea_fip.address
+}
+
+output "jenkins_floating_ip" {
+  description = "Jenkins server floating IP address (Primary CI/CD)"
+  value       = openstack_networking_floatingip_v2.jenkins_fip.address
 }
 
 output "nginx_floating_ip" {
@@ -27,9 +32,14 @@ output "rancher_floating_ip" {
 }
 
 # Internal IP addresses for service communication
-output "gitlab_ip" {
-  description = "GitLab server internal IP address"
-  value       = openstack_compute_instance_v2.gitlab.access_ip_v4
+output "gitea_ip" {
+  description = "Gitea Git repository server internal IP address"
+  value       = openstack_compute_instance_v2.gitea.access_ip_v4
+}
+
+output "jenkins_ip" {
+  description = "Jenkins CI/CD server internal IP address"
+  value       = openstack_compute_instance_v2.jenkins.access_ip_v4
 }
 
 output "nexus_ip" {
@@ -76,7 +86,8 @@ output "key_pair_name" {
 output "ansible_inventory" {
   description = "Ansible inventory in YAML format"
   value = templatefile("${path.module}/templates/inventory.yml.tpl", {
-    gitlab_ip   = openstack_compute_instance_v2.gitlab.access_ip_v4
+    gitea_ip    = openstack_compute_instance_v2.gitea.access_ip_v4
+    jenkins_ip  = openstack_compute_instance_v2.jenkins.access_ip_v4
     nexus_ip    = openstack_compute_instance_v2.nexus.access_ip_v4
     keycloak_ip = openstack_compute_instance_v2.keycloak.access_ip_v4
     rancher_ip  = openstack_compute_instance_v2.rancher.access_ip_v4
@@ -111,9 +122,14 @@ output "domain_name" {
 }
 
 # Service URLs for Kubernetes deployment
-output "gitlab_k8s_url" {
-  description = "GitLab URL in Kubernetes deployment"
-  value       = var.enable_kubernetes_deployment ? "https://gitlab.${var.domain_name}" : null
+output "gitea_k8s_url" {
+  description = "Gitea URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://gitea.${var.domain_name}" : null
+}
+
+output "jenkins_k8s_url" {
+  description = "Jenkins URL in Kubernetes deployment"
+  value       = var.enable_kubernetes_deployment ? "https://jenkins.${var.domain_name}" : null
 }
 
 output "rancher_k8s_url" {

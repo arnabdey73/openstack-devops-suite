@@ -63,8 +63,11 @@
         name: OpenSSH
       when: ansible_os_family == 'Debian'
 
-- name: Deploy GitLab SCM and Project Management
-  import_playbook: gitlab.yml
+- name: Deploy Gitea Self-Hosted Git Repository
+  import_playbook: gitea.yml
+
+- name: Deploy Jenkins CI/CD Server
+  import_playbook: jenkins.yml
 
 - name: Deploy Rancher Kubernetes Management
   import_playbook: rancher.yml
@@ -113,36 +116,13 @@
     - elk
     - elasticsearch
 
-- name: Deploy Jaeger Distributed Tracing
-  import_playbook: jaeger.yml
-  tags:
-    - tracing
-    - jaeger
-    - observability
 
-# 3. GitOps and CI/CD
-- name: Deploy ArgoCD GitOps Framework
-  import_playbook: argocd.yml
-  tags:
-    - gitops
-    - argocd
-    - cicd
 
-# 4. Security and Compliance
-- name: Deploy Security Scanning
-  import_playbook: security.yml
-  tags:
-    - security
-    - scanning
-    - compliance
+# 3. GitOps and CI/CD (removed ArgoCD for now)
 
-# 5. API Gateway and Enterprise Integration
-- name: Deploy Kong API Gateway
-  import_playbook: api_gateway.yml
-  tags:
-    - api_gateway
-    - kong
-    - enterprise
+# 4. Security and Compliance (security scanning removed for now)
+
+# 5. API Gateway and Enterprise Integration (API Gateway removed for now)
 
 - name: Configure Nginx Proxy
   hosts: nginx_servers

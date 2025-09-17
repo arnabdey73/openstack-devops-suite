@@ -1,0 +1,66 @@
+---
+# Gitea SCM configuration defaults
+
+# Gitea version and download configuration
+gitea_version: "1.21.5"
+gitea_architecture: "linux-amd64"
+gitea_binary_url: "https://github.com/go-gitea/gitea/releases/download/v{{ gitea_version }}/gitea-{{ gitea_version }}-{{ gitea_architecture }}"
+
+# System user and directories
+gitea_user: "git"
+gitea_group: "git"
+gitea_home: "/home/{{ gitea_user }}"
+gitea_data_dir: "{{ gitea_home }}/gitea-repositories"
+gitea_config_dir: "/etc/gitea"
+gitea_log_dir: "/var/log/gitea"
+gitea_binary_dir: "/usr/local/bin"
+
+# Network configuration
+gitea_http_port: 3000
+gitea_ssh_port: 2222
+gitea_host: "{{ ansible_default_ipv4.address }}"
+gitea_domain: "{{ gitea_host }}"
+gitea_root_url: "http://{{ gitea_domain }}:{{ gitea_http_port }}/"
+
+# Database configuration (SQLite by default for simplicity)
+gitea_database_type: "sqlite3"
+gitea_database_path: "{{ gitea_home }}/data/gitea.db"
+
+# Security and admin configuration
+gitea_secret_key: "{{ gitea_secret_key_vault | default('ChangeMe-SecretKey-123456789') }}"
+gitea_admin_username: "gitea_admin"
+gitea_admin_password: "{{ gitea_admin_password_vault | default('ChangeMe123!') }}"
+gitea_admin_email: "admin@{{ gitea_domain }}"
+
+# Service configuration
+gitea_app_name: "Gitea: Git with a cup of tea"
+gitea_run_mode: "prod"
+gitea_disable_registration: false
+gitea_require_signin_view: false
+gitea_enable_captcha: true
+
+# Repository configuration
+gitea_repository_root: "{{ gitea_data_dir }}"
+gitea_default_branch: "main"
+
+# Actions (CI/CD) configuration
+gitea_actions_enabled: true
+gitea_actions_log_retention: "30d"
+
+# Webhook and integration settings
+gitea_webhook_allowed_hosts: "*"
+gitea_webhook_skip_tls_verify: false
+
+# Performance settings
+gitea_max_file_size: 100
+gitea_lfs_enabled: true
+
+# Email configuration (disabled by default)
+gitea_mailer_enabled: false
+gitea_mailer_host: ""
+gitea_mailer_user: ""
+gitea_mailer_password: ""
+
+# OAuth2 and OpenID Connect
+gitea_oauth2_enabled: true
+gitea_openid_signin: true

@@ -1,0 +1,65 @@
+---
+# Gitea SCM deployment playbook
+- name: Deploy Gitea Self-Hosted Git Repository
+  hosts: gitea_servers
+  become: true
+  tags:
+    - gitea
+    - scm
+    - git
+    - repository
+  
+  pre_tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Install basic prerequisites
+      package:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - software-properties-common
+          - unzip
+        state: present
+
+    - name: Check system requirements
+      assert:
+        that:
+          - ansible_memtotal_mb >= 1024
+        fail_msg: "Gitea requires at least 1GB of RAM"
+        success_msg: "System meets minimum memory requirements"
+
+    - name: Check disk space
+      assert:
+        that:
+          - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first > 2147483648  # 2GB
+        fail_msg: "Gitea requires at least 2GB of free disk space"
+        success_msg: "System meets minimum disk space requirements"
+
+  roles:
+    - gitea_scm
+
+  post_tasks:
+    - name: Configure firewall for Gitea
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "3000"  # Gitea web interface
+        - "2222"  # SSH for Git operations
+      when: ansible_os_family == 'Debian'
+
+    - name: Display post-installation information
+      debug:
+        msg:
+          - "🎉 Gitea installation completed successfully!"
+          - "🌐 Web interface: http://{{ ansible_default_ipv4.address }}:3000"
+          - "👤 Admin username: {{ gitea_admin_username }}"
+          - "🔐 Admin password: {{ gitea_admin_password }}"
+          - "📡 SSH clone port: 2222"
+          - "💡 Next steps: Configure Jenkins integration and webhooks"

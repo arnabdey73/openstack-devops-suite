@@ -211,36 +211,36 @@ test_ansible_playbooks() {
     fi
 }
 
-# Test GitLab CI/CD configuration
-test_gitlab_ci() {
-    log "🦊 Testing GitLab CI/CD configuration..."
+# Test Jenkins CI/CD configuration
+test_jenkins_ci() {
+    log "🔧 Testing Jenkins CI/CD configuration..."
     
     cd "$PROJECT_ROOT"
     
-    # Check if .gitlab-ci.yml exists and has required sections
-    if [[ -f .gitlab-ci.yml ]]; then
-        log_success "GitLab CI configuration file exists"
+    # Check if Jenkinsfile exists and has required sections
+    if [[ -f Jenkinsfile ]]; then
+        log_success "Jenkins pipeline configuration file exists"
         
         # Check for hybrid deployment support
-        if grep -q "kubernetes:validate" .gitlab-ci.yml; then
-            log_success "Kubernetes validation job configured"
+        if grep -q "kubernetes.*validate\|validate.*kubernetes" Jenkinsfile; then
+            log_success "Kubernetes validation stage configured"
         else
-            log_error "Kubernetes validation job missing"
+            log_error "Kubernetes validation stage missing"
         fi
         
-        if grep -q "kubernetes:deploy" .gitlab-ci.yml; then
-            log_success "Kubernetes deployment job configured"
+        if grep -q "kubernetes.*deploy\|deploy.*kubernetes" Jenkinsfile; then
+            log_success "Kubernetes deployment stage configured"
         else
-            log_error "Kubernetes deployment job missing"
+            log_error "Kubernetes deployment stage missing"
         fi
         
-        if grep -q "hybrid:deploy" .gitlab-ci.yml; then
-            log_success "Hybrid deployment job configured"
+        if grep -q "hybrid.*deploy\|deploy.*hybrid" Jenkinsfile; then
+            log_success "Hybrid deployment stage configured"
         else
-            log_error "Hybrid deployment job missing"
+            log_error "Hybrid deployment stage missing"
         fi
     else
-        log_error "GitLab CI configuration file missing"
+        log_error "Jenkins pipeline configuration file missing"
     fi
 }
 
@@ -450,7 +450,7 @@ main() {
     test_ansible_playbooks
     echo ""
     
-    test_gitlab_ci
+    test_jenkins_ci
     echo ""
     
     test_deployment_script

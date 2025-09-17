@@ -1,0 +1,81 @@
+// Sample Jenkins Pipeline for Gitea Integration
+// {{ ansible_managed }}
+
+pipeline {
+    agent any
+    
+    environment {
+        GITEA_URL = "{{ gitea_server_url }}"
+        GITEA_WEBHOOK_SECRET = credentials('gitea-webhook-secret')
+    }
+    
+    triggers {
+        GenericTrigger(
+            genericVariables: [
+                [key: 'ref', value: '$.ref'],
+                [key: 'repository_name', value: '$.repository.name'],
+                [key: 'repository_url', value: '$.repository.clone_url']
+            ],
+            token: "${GITEA_WEBHOOK_SECRET}",
+            causeString: 'Triggered by Gitea webhook',
+            printContributedVariables: true,
+            printPostContent: true
+        )
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    if (env.repository_url) {
+                        git branch: 'main', url: env.repository_url
+                    } else {
+                        echo 'Manual trigger - no repository specified'
+                    }
+                }
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Building application...'
+                // Add your build steps here
+                sh 'echo "Build completed successfully"'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                // Add your test steps here
+                sh 'echo "Tests completed successfully"'
+            }
+        }
+        
+        stage('Deploy') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
+            steps {
+                echo 'Deploying application...'
+                // Add your deployment steps here
+                sh 'echo "Deployment completed successfully"'
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

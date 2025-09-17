@@ -1,0 +1,161 @@
+---
+# Jenkins CI/CD installation and configuration tasks
+
+- name: Install Java (OpenJDK 11)
+  package:
+    name: openjdk-11-jdk
+    state: present
+  become: true
+
+- name: Install prerequisites
+  package:
+    name:
+      - curl
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+      - software-properties-common
+    state: present
+  become: true
+
+- name: Add Jenkins repository GPG key
+  apt_key:
+    url: "{{ jenkins_repo_key_url }}"
+    state: present
+  become: true
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb {{ jenkins_repo_url }} binary/"
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install Jenkins
+  package:
+    name: jenkins
+    state: "{{ jenkins_package_state }}"
+  become: true
+  notify: 
+    - start jenkins
+    - enable jenkins
+
+- name: Create Jenkins user
+  user:
+    name: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    home: "{{ jenkins_home }}"
+    shell: /bin/bash
+    create_home: true
+  become: true
+
+- name: Set Jenkins home directory permissions
+  file:
+    path: "{{ jenkins_home }}"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: '0755'
+  become: true
+    backup: true
+- name: Configure Jenkins defaults
+  template:
+    src: jenkins.j2
+    dest: /etc/default/jenkins
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  become: true
+  notify: restart jenkins
+
+- name: Start and enable Jenkins service
+  systemd:
+    name: jenkins
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+
+- name: Wait for Jenkins to start up
+  uri:
+    url: "{{ jenkins_url }}"
+    method: GET
+    status_code: [200, 403]
+  register: jenkins_check
+  until: jenkins_check.status in [200, 403]
+  retries: 60
+  delay: 5
+
+- name: Get Jenkins initial admin password
+  slurp:
+    src: "{{ jenkins_home }}/secrets/initialAdminPassword"
+  register: jenkins_initial_password
+  become: true
+  failed_when: false
+
+- name: Install Jenkins plugins
+  jenkins_plugin:
+    name: "{{ item }}"
+    jenkins_home: "{{ jenkins_home }}"
+    url: "{{ jenkins_url }}"
+    username: "{{ jenkins_admin_username }}"
+    password: "{{ jenkins_initial_password.content | b64decode | trim if jenkins_initial_password.content is defined else jenkins_admin_password }}"
+    timeout: 300
+  loop: "{{ jenkins_plugins }}"
+  become: true
+  when: jenkins_plugins is defined
+
+- name: Create Jenkins jobs directory
+  file:
+    path: "{{ jenkins_home }}/jobs"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: '0755'
+  become: true
+
+- name: Configure firewall for Jenkins
+  ufw:
+    rule: allow
+    port: "{{ jenkins_port }}"
+    proto: tcp
+  become: true
+
+- name: Create Jenkins backup directory
+  file:
+    path: "/var/backups/jenkins"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: '0750'
+  become: true
+
+- name: Create Gitea webhook configuration directory
+  file:
+    path: "{{ jenkins_home }}/gitea-webhooks"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: '0755'
+  become: true
+
+- name: Create sample Jenkins-Gitea pipeline
+  template:
+    src: sample-pipeline.groovy.j2
+    dest: "{{ jenkins_home }}/gitea-webhooks/sample-pipeline.groovy"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: '0644'
+  become: true
+  when: jenkins_create_sample_jobs
+
+- name: Display Jenkins access information
+  debug:
+    msg:
+      - "🔧 Jenkins is available at: {{ jenkins_url }}"
+      - "👤 Admin username: {{ jenkins_admin_username }}"
+      - "🔐 Admin password: {{ jenkins_admin_password }}"
+      - "🔗 Gitea server URL: {{ gitea_server_url }}"
+      - "💡 Next: Configure Gitea webhooks for Jenkins integration"

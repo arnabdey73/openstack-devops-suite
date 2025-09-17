@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GitLab-Centered DevOps Suite - 1-Click Application Onboarding Portal
+Jenkins-Centered DevOps Suite - 1-Click Application Onboarding Portal
 -------------------------------------------------------------------
 A Vercel-like onboarding experience for the OpenStack DevOps Suite.
 """

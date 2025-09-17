@@ -1,0 +1,37 @@
+---
+# Jenkins service handlers
+
+- name: start jenkins
+  systemd:
+    name: jenkins
+    state: started
+  become: true
+  listen: start jenkins
+
+- name: enable jenkins
+  systemd:
+    name: jenkins
+    enabled: true
+  become: true
+  listen: enable jenkins
+
+- name: restart jenkins
+  systemd:
+    name: jenkins
+    state: restarted
+  become: true
+  listen: restart jenkins
+
+- name: stop jenkins
+  systemd:
+    name: jenkins
+    state: stopped
+  become: true
+  listen: stop jenkins
+
+- name: reload jenkins
+  systemd:
+    name: jenkins
+    state: reloaded
+  become: true
+  listen: reload jenkins

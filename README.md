@@ -5,13 +5,15 @@
 ![Deployment](https://img.shields.io/badge/Deployment-Hybrid%20(VM%20%2B%20K8s)-blue?style=for-the-badge)
 ![Observability](https://img.shields.io/badge/Observability-Full%20Stack-purple?style=for-the-badge)
 
-A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with complete observability, security, and modernization capabilities. This solution provides a GitLab-centered CI/CD ecosystem enhanced with enterprise monitoring, distributed tracing, centralized logging, GitOps automation, security scanning, and API gateway management.
+A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with complete observability and modernization capabilities. This solution provides a Jenkins CI/CD ecosystem with Gitea self-hosted Git repositories, enhanced with enterprise monitoring, centralized logging, and scalable artifact management. The architecture separates source control management (Gitea) from continuous integration (Jenkins) for better scalability and maintenance.
 
 ## 🚀 Enterprise Features
 
 ### 🏗️ Core Infrastructure
-- � Infrastructure as Code with Terraform (VMware OpenStack optimized)  
-- 🦊 **GitLab as Primary CI/CD and SCM** (Jenkins-free architecture)
+
+- 🏗️ Infrastructure as Code with Terraform (VMware OpenStack optimized)  
+- 🔧 **Jenkins CI/CD Server** - Modern automation and pipeline management
+- 🗃️ **Gitea Self-Hosted Git** - Lightweight, fast Git repository hosting
 - ☸️ Kubernetes orchestration with Rancher
 - 📦 Artifact and Docker registry with Nexus
 - 🔐 Centralized identity management with Keycloak
@@ -20,32 +22,34 @@ A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with 
 - 🌐 NGINX as reverse proxy and load balancer
 
 ### 📊 Enterprise Observability Stack
+
 - 🔍 **Prometheus + Grafana** - Comprehensive metrics and monitoring
-- � **ELK Stack** - Centralized logging and analysis (Elasticsearch, Logstash, Kibana)
-- 🕸️ **Jaeger** - Distributed tracing and microservices observability
-- 🚨 **Alertmanager** - Intelligent alerting and notification management
+- 📋 **ELK Stack** - Centralized logging and analysis (Elasticsearch, Logstash, Kibana)
+-  **Alertmanager** - Intelligent alerting and notification management
 - 📈 **Node Exporter** - Infrastructure metrics collection
 
 ### 🔒 Security & Compliance
+
 - 🛡️ **HashiCorp Vault** - Centralized secrets management and encryption
 - 🔐 **Multi-Auth Support** - LDAP, AppRole, Kubernetes, JWT authentication
-- 🛡️ **OWASP ZAP** - Automated security vulnerability scanning
-- 🚦 **OPA Policies** - Policy-as-code compliance and governance
-- � **SSL/TLS Management** - Automated certificate management and PKI
+-  **OPA Policies** - Policy-as-code compliance and governance
+- 🔒 **SSL/TLS Management** - Automated certificate management and PKI
 
-### �🔄 Modern DevOps Automation
-- 🎯 **ArgoCD GitOps** - Declarative continuous delivery and application lifecycle
+### 🔄 Modern DevOps Automation
+
 - 🧪 **Terratest** - Infrastructure testing and validation framework
-- 🔀 **CI/CD Integration** - Seamless GitLab pipeline automation
-- � **Performance Testing** - Load testing with JMeter and Locust
+- 🔀 **CI/CD Integration** - Seamless Jenkins pipeline automation
+- 📈 **Performance Testing** - Load testing with JMeter and Locust
 - 🚀 **Deployment Automation** - Zero-downtime deployments and rollbacks
 
-### 🌐 API Gateway & Enterprise Integration
-- 🚪 **Kong API Gateway** - Enterprise traffic management and routing
-- ⚡ **Rate Limiting** - Configurable traffic control and throttling
-- 🔑 **Authentication Hub** - JWT, OAuth2, and API key management
-- 🤖 **Bot Detection** - Advanced security and traffic filtering
-- 📊 **API Analytics** - Comprehensive usage metrics and monitoring
+### 🔮 Future Feature Extensions
+
+The following components can be added as future enhancements:
+
+- 🕸️ **Jaeger** - Distributed tracing and microservices observability
+- 🎯 **ArgoCD GitOps** - Declarative continuous delivery and application lifecycle
+- 🛡️ **OWASP ZAP** - Automated security vulnerability scanning
+- � **Kong API Gateway** - Enterprise traffic management and routing
 
 ## 🏗️ Enterprise Architecture
 
@@ -84,7 +88,7 @@ A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with 
 **GitOps Layer (Modern Deployment):**
 
 - ArgoCD declarative continuous delivery platform
-- GitLab-native CI/CD pipelines with enterprise workflows
+- Jenkins CI/CD pipelines with Gitea integration and enterprise workflows
 - Infrastructure provisioning automation with approval gates
 - Configuration management with GitOps principles
 - Service health verification and automated rollback capabilities
@@ -102,7 +106,7 @@ A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with 
 | Role                    | Purpose                                    | Technology Stack         |
 |------------------------|--------------------------------------------|-------------------------|
 | `openstack_vm`         | Creates and manages VMs in OpenStack      | Terraform + Ansible     |
-| `gitlab_scm`           | Deploys GitLab for Git/Project Mgmt       | GitLab CE + Registry     |
+| `jenkins_ci`           | Deploys Jenkins CI/CD Server              | Jenkins + Java           |
 | `rancher_k8s`          | Installs Rancher & bootstraps K8s         | Rancher + Docker         |
 | `nexus_repo`           | Sets up Nexus OSS repository              | Nexus OSS                |
 | `keycloak_iam`         | Configures Keycloak for IAM               | Keycloak + PostgreSQL    |
@@ -113,9 +117,14 @@ A comprehensive enterprise-grade DevOps platform built on VMware OpenStack with 
 | `prometheus_monitoring`| Complete monitoring infrastructure         | Prometheus + Alertmanager|
 | `grafana_visualization`| Dashboard and metrics visualization        | Grafana + Enterprise     |
 | `elasticsearch_logging`| Centralized logging platform              | ELK Stack (E+L+K)        |
+| `vault_secrets`        | Centralized secrets management            | HashiCorp Vault          |
+
+### Removed Components (Available as Future Features)
+
+| Component              | Purpose                                    | Technology Stack         |
+|------------------------|--------------------------------------------|-------------------------|
 | `jaeger_tracing`       | Distributed tracing system                | Jaeger + OpenTracing     |
 | `argocd_gitops`        | GitOps continuous delivery                | ArgoCD + Helm            |
-| `vault_secrets`        | Centralized secrets management            | HashiCorp Vault          |
 | `security_scanning`    | Automated security testing                | OWASP ZAP + Trivy        |
 | `api_gateway`          | Enterprise API gateway                    | Kong + PostgreSQL        |
 
@@ -167,7 +176,8 @@ cd openstack-devops-suite
 source your-openstack-rc.sh
 
 # Set enterprise environment variables
-export GITLAB_ROOT_PASSWORD="YourSecurePassword123!"
+export JENKINS_ADMIN_PASSWORD="YourSecurePassword123!"
+export GITEA_ADMIN_PASSWORD="YourSecureGiteaPassword123!"
 export VAULT_TOKEN="your-vault-token"
 export MONITORING_DOMAIN="monitoring.your-domain.com"
 
@@ -199,25 +209,77 @@ cd policy && opa test .
 ## 📊 Enterprise Dashboards & Access Points
 
 ### Core Services
-- **GitLab**: `http://gitlab.your-domain.com` - Primary CI/CD and SCM
+
+- **Jenkins**: `http://jenkins.your-domain.com` - Primary CI/CD Server
 - **Rancher**: `http://rancher.your-domain.com` - Kubernetes management  
 - **Nexus**: `http://nexus.your-domain.com` - Artifact repository
 - **Keycloak**: `http://keycloak.your-domain.com` - Identity management
 
 ### Enterprise Monitoring Stack
+
 - **Grafana**: `http://grafana.your-domain.com` - Unified monitoring dashboards
 - **Prometheus**: `http://prometheus.your-domain.com` - Metrics and alerting
 - **Kibana**: `http://kibana.your-domain.com` - Centralized log analysis
-- **Jaeger**: `http://jaeger.your-domain.com` - Distributed tracing
 - **AlertManager**: `http://alerts.your-domain.com` - Alert management
 
-### DevSecOps & GitOps
+### Security & Secrets Management
+
 - **Vault**: `http://vault.your-domain.com` - Secrets management
-- **ArgoCD**: `http://argocd.your-domain.com` - GitOps continuous delivery
-- **Kong Gateway**: `http://api-gateway.your-domain.com` - API management
-- **Security Dashboard**: `http://security.your-domain.com` - Vulnerability scanning
+
+## 🔗 Recommended Git Hosting Solutions
+
+Since this suite now uses Jenkins for CI/CD, you'll need to connect it to a Git repository. Here are the recommended open source and hosted Git solutions:
+
+### Open Source Self-Hosted Options
+
+1. **Gitea** - Lightweight, fast, and easy to deploy
+   - Minimal resource requirements
+   - GitHub-like interface
+   - Built-in CI/CD actions support
+   - Perfect for small to medium teams
+
+2. **Jenkins CI/CD Server** - Automation and pipeline management
+3. **Gitea Self-Hosted Git** - Lightweight Git repository hosting
+   - Comprehensive project management
+   - Built-in container registry
+   - Issue tracking and wiki
+   - Suitable for larger organizations
+
+4. **Forgejo** - Community-driven Gitea fork
+   - Enhanced privacy features
+   - Active community development
+   - Compatible with Gitea
+
+### Cloud-Hosted Options
+
+1. **GitHub** - Industry standard with excellent ecosystem
+   - Free for public repositories
+   - Extensive marketplace and integrations
+   - Best-in-class collaboration features
+
+2. **Bitbucket** - Atlassian's Git solution
+   - Tight integration with Jira and Confluence
+   - Good for teams already using Atlassian tools
+   - Competitive pricing
+
+3. **SourceForge** - Classic open source hosting
+   - Free for open source projects
+   - Long-established platform
+
+### Integration with Jenkins
+
+The Jenkins CI role in this suite can be easily configured to work with any of these Git hosting solutions by:
+- Installing appropriate Git plugins
+- Configuring webhooks for automatic builds
+- Setting up SSH keys or access tokens for repository access
 
 ### Enterprise Features
+
+- **📊 50+ Pre-built Grafana Dashboards** - Infrastructure, applications, security metrics
+- **🔍 Automated Log Correlation** - ELK stack with intelligent parsing
+- **🚨 Multi-Channel Alerting** - Email, Slack, PagerDuty integration  
+- **🔒 Zero-Trust Security** - Vault-backed secret rotation and PKI
+- **🚀 CI/CD Automation** - Jenkins with comprehensive pipeline management
 - **📊 50+ Pre-built Grafana Dashboards** - Infrastructure, applications, security metrics
 - **🔍 Automated Log Correlation** - ELK stack with intelligent parsing
 - **🚨 Multi-Channel Alerting** - Email, Slack, PagerDuty integration  
@@ -250,7 +312,8 @@ terraform destroy -var-file="terraform.tfvars"
 ansible-playbook -i inventory/terraform-hosts.yml playbooks/site.yml
 
 # Deploy specific service
-ansible-playbook -i inventory/terraform-hosts.yml playbooks/gitlab.yml
+ansible-playbook -i inventory/terraform-hosts.yml playbooks/gitea.yml
+ansible-playbook -i inventory/terraform-hosts.yml playbooks/jenkins.yml
 
 # Check service status
 ansible all -i inventory/terraform-hosts.yml -m ping
@@ -287,9 +350,9 @@ nginx_proxy:
 
 For more information, see the [Dashboard Documentation](./docs/dashboard.md).
 
-## 🔄 GitLab CI/CD Integration
+## 🔄 Jenkins & Gitea Integration
 
-The suite includes a comprehensive GitLab CI/CD pipeline (`.gitlab-ci.yml`) that automates:
+The suite includes a comprehensive Jenkins CI/CD setup with Gitea integration that automates:
 
 - **Infrastructure Validation**: Terraform syntax and plan validation
 - **Configuration Validation**: Ansible playbook syntax checking
@@ -313,14 +376,16 @@ After deployment, access your services at:
 | Service | URL | Description |
 |---------|-----|-------------|
 | **Dashboard** | `http://<nginx-ip>` | Central DevOps dashboard |
-| **GitLab** | `http://<gitlab-ip>:8090` | Git SCM, CI/CD, Container Registry |
+| **Gitea** | `http://<gitea-ip>:3000` | Git SCM, Repository hosting |
+| **Jenkins** | `http://<jenkins-ip>:8080` | CI/CD, Pipeline automation |
 | **Nexus** | `http://<nexus-ip>:8081` | Artifact and package repository |
 | **Keycloak** | `http://<keycloak-ip>:8180` | Identity and access management |
 | **Rancher** | `http://<rancher-ip>:8443` | Kubernetes cluster management |
 
 ### Default Credentials
 
-- **GitLab**: Username `root`, Password: `$GITLAB_ROOT_PASSWORD` or `ChangeMe123!`
+- **Gitea**: Username `gitea`, Password: `$GITEA_ADMIN_PASSWORD` or `ChangeMe123!`
+- **Jenkins**: Username `admin`, Password: `$JENKINS_ADMIN_PASSWORD` or `ChangeMe123!`
 - **Other services**: Refer to individual service documentation
 
 ## 🔧 Configuration
@@ -341,9 +406,9 @@ Key variables:
 - `image_name`: Base OS image (Ubuntu 22.04 recommended)
 - `flavor_name`: Instance size (m1.medium or larger)
 
-### GitLab Configuration
+### Gitea & Jenkins Configuration
 
-Customize GitLab settings in `roles/gitlab_scm/defaults/main.yml`:
+Customize Gitea settings in `roles/gitea_scm/defaults/main.yml` and Jenkins settings in `roles/jenkins_ci/defaults/main.yml`:
 - External URL and ports
 - Registry configuration  
 - LDAP integration
@@ -377,8 +442,11 @@ ansible <service>_servers -i inventory/terraform-hosts.yml -a "journalctl -u <se
 ### Backup and Recovery
 
 ```bash
-# GitLab backup (automated via cron)
-/opt/gitlab/bin/gitlab-backup create
+# Gitea backup (automated via cron)
+gitea dump -c /etc/gitea/app.ini
+
+# Jenkins backup (automated via cron) 
+tar -czf /backup/jenkins-$(date +%Y%m%d).tar.gz /var/lib/jenkins/
 
 # Terraform state backup
 cp terraform/terraform.tfstate terraform/terraform.tfstate.backup
@@ -458,7 +526,7 @@ ansible-playbook playbooks/integration-tests.yml --extra-vars "deployment_type=k
 
 ### Automated Testing in CI/CD
 
-The GitLab CI/CD pipeline automatically runs tests at different stages:
+The Jenkins CI/CD pipeline automatically runs tests at different stages:
 
 - **Validation Stage**: Configuration and syntax checks
 - **Verify Stage**: Service connectivity and health checks  
@@ -531,4 +599,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Note**: This modernized suite uses GitLab for improved Git workflows, integrated CI/CD, and better container registry support. See the [Migration Guide](docs/MIGRATION_GUIDE.md) for detailed implementation steps.
+**Note**: This modernized suite uses Jenkins for CI/CD automation and Gitea for self-hosted Git repositories, providing a lightweight yet powerful DevOps platform. The separation of concerns between SCM (Gitea) and CI/CD (Jenkins) offers better scalability and maintenance. See the [Migration Guide](docs/MIGRATION_GUIDE.md) for detailed implementation steps.

@@ -1,0 +1,17 @@
+# Jenkins configuration template
+# {{ ansible_managed }}
+
+JENKINS_USER="{{ jenkins_user }}"
+JENKINS_GROUP="{{ jenkins_group }}"
+JENKINS_HOME="{{ jenkins_home }}"
+JENKINS_LOG=/var/log/jenkins/jenkins.log
+
+# Jenkins HTTP configuration
+JENKINS_PORT={{ jenkins_port }}
+JENKINS_LISTEN_ADDRESS={{ jenkins_host }}
+
+# Java options
+JAVA_ARGS="{{ jenkins_java_options }}"
+
+# Jenkins arguments
+JENKINS_ARGS="--webroot=/var/cache/jenkins/war --httpPort=$JENKINS_PORT --httpListenAddress=$JENKINS_LISTEN_ADDRESS"

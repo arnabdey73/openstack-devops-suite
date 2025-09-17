@@ -177,7 +177,7 @@ test_ssl_endpoints() {
     if [[ -n "$ingress_ip" && "$ingress_ip" != "null" ]]; then
         log_info "Testing Kubernetes ingress endpoints (IP: $ingress_ip)"
         
-        local services=("gitlab" "dashboard" "nexus" "keycloak" "rancher" "docker")
+        local services=("jenkins" "dashboard" "nexus" "keycloak" "rancher" "docker")
         for service in "${services[@]}"; do
             test_ssl_certificate "$service.$DOMAIN_NAME" "$ingress_ip" "Kubernetes"
         done
@@ -315,7 +315,7 @@ test_dns_configuration() {
     if [[ -n "$ingress_ip" && "$ingress_ip" != "null" ]]; then
         log_info "Ingress LoadBalancer IP: $ingress_ip"
         
-        local services=("gitlab" "dashboard" "nexus" "keycloak" "rancher" "docker")
+        local services=("jenkins" "dashboard" "nexus" "keycloak" "rancher" "docker")
         for service in "${services[@]}"; do
             local hostname="$service.$DOMAIN_NAME"
             

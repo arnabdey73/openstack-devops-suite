@@ -17,14 +17,26 @@ all:
     # Infrastructure nodes
     infrastructure:
       children:
-        gitlab_servers:
+        gitea_servers:
           hosts:
-            gitlab:
-              ansible_host: "{{ lookup('env', 'GITLAB_IP') | default('10.0.0.11', true) }}"
-              service_type: gitlab
-              service_port: 8090
-              role: ci-cd-scm
-              gitlab_root_password: "{{ lookup('env', 'GITLAB_ROOT_PASSWORD') | default('ChangeMe123!', true) }}"
+            gitea:
+              ansible_host: "{{ lookup('env', 'GITEA_IP') | default('10.0.0.10', true) }}"
+              service_type: gitea
+              service_port: 3000
+              ssh_port: 2222
+              role: scm
+              gitea_admin_password: "{{ lookup('env', 'GITEA_ADMIN_PASSWORD') | default('ChangeMe123!', true) }}"
+              gitea_secret_key: "{{ lookup('env', 'GITEA_SECRET_KEY') | default('ChangeMe-SecretKey-123456789', true) }}"
+            
+        jenkins_servers:
+          hosts:
+            jenkins:
+              ansible_host: "{{ lookup('env', 'JENKINS_IP') | default('10.0.0.11', true) }}"
+              service_type: jenkins
+              service_port: 8080
+              role: ci-cd
+              jenkins_admin_password: "{{ lookup('env', 'JENKINS_ADMIN_PASSWORD') | default('ChangeMe123!', true) }}"
+              gitea_url: "http://{{ lookup('env', 'GITEA_IP') | default('10.0.0.10', true) }}:3000"
             
 
         rancher_servers:
