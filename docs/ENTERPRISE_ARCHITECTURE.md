@@ -2,29 +2,29 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           🌐 Kong API Gateway & Load Balancer                             │
-│                    Rate Limiting • Authentication • Bot Detection                          │
+│                           🌐 NGINX API Gateway & Load Balancer                           │
+│                    Rate Limiting • SSL Termination • Service Routing                      │
 └─────────────────────────┬───────────────────────────────────────────────────────────────┘
                           │
         ┌─────────────────┴─────────────────┐
         │          🔒 Security Layer         │
-        │   HashiCorp Vault • OWASP ZAP     │
-        │      PKI • Secrets Management     │
+        │      HashiCorp Vault & PKI        │
+        │      Secrets Management           │
         └─────────────────┬─────────────────┘
                           │
 ┌─────────────────────────┴─────────────────────────────────────────────────────────────────┐
 │                         📊 Enterprise Observability Stack                                  │
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
-│  🔍 Prometheus     📈 Grafana      📋 ELK Stack     🕸️ Jaeger      🚨 AlertManager       │
-│  Metrics & KPIs   Dashboards     Log Analysis    Tracing        Notifications           │
+│  🔍 Prometheus     📈 Grafana      📋 ELK Stack      🚨 AlertManager                     │
+│  Metrics & KPIs   Dashboards     Log Analysis      Notifications                         │
 └─────────────────────────┬─────────────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────┴─────────────────────────────────────────────────────────────────┐
-│                            🎯 GitOps & CI/CD Layer                                         │
+│                            🔧 CI/CD & DevOps Layer                                         │
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
-│    🦊 GitLab CI/CD           🎯 ArgoCD              🧪 Infrastructure Testing             │
-│   Source Control &         GitOps Automation       Terratest • OPA Policies             │
-│   Pipeline Automation      Helm Charts             Go Testing Framework                  │
+│    🏗️ Jenkins CI/CD         📦 Gitea SCM            🧪 Infrastructure Testing             │
+│   Pipeline Automation      Self-hosted Git         Terratest • OPA Policies             │
+│   Build & Deploy          Repository Hosting       Go Testing Framework                  │
 └─────────────────────────┬─────────────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────┴─────────────────────────────────────────────────────────────────┐
@@ -43,20 +43,20 @@
 
 Enterprise Features:
 ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┬─────────────────┐
-│ 🔍 Observability │ 🔒 Security     │ 🎯 GitOps       │ 🌐 API Gateway  │ 🧪 Testing      │
+│ 🔍 Observability │ 🔒 Security     │ 🔧 CI/CD        │ 🌐 API Gateway  │ 🧪 Testing      │
 ├─────────────────┼─────────────────┼─────────────────┼─────────────────┼─────────────────┤
-│• 50+ Dashboards │• Zero-Trust     │• Declarative    │• Rate Limiting  │• Infrastructure │
-│• Real-time      │• Secrets Mgmt   │• CD Pipelines   │• Authentication │• Policy as Code │
-│• Multi-channel  │• Auto Scanning  │• Helm Charts    │• Bot Detection  │• Go Framework   │
-│• Log Analysis   │• Compliance     │• Self-Healing   │• Analytics      │• Automated      │
-│• Distributed    │• PKI/TLS        │• Rollbacks      │• Load Balancing │• Reporting      │
+│• 50+ Dashboards │• Zero-Trust     │• Jenkins        │• Rate Limiting  │• Infrastructure │
+│• Real-time      │• Secrets Mgmt   │• Git SCM        │• SSL Termination│• Policy as Code │
+│• Multi-channel  │• Compliance     │• Self-hosted    │• Load Balancing │• Go Framework   │
+│• Log Analysis   │• PKI/TLS        │• Webhooks       │• Service Routing│• Automated      │
+│• Alerting       │• Vault          │• Automation     │• Centralized    │• Reporting      │
 └─────────────────┴─────────────────┴─────────────────┴─────────────────┴─────────────────┘
 
 Technology Stack:
-• Prometheus 2.47.0 + Grafana 10.1.5 + ELK 8.10.4 + Jaeger 1.50.0
-• HashiCorp Vault 1.15.2 + OWASP ZAP 2.14.0 + OPA Policies
-• ArgoCD v2.8.4 + GitLab CE + Helm 3.x + Terratest Go Framework
-• Kong Gateway 3.4.2 + PostgreSQL + Enterprise Plugins
+• Prometheus 2.47.0 + Grafana 10.1.5 + ELK 8.10.4
+• HashiCorp Vault 1.15.2 + OPA Policies
+• Jenkins LTS + Gitea 1.20+ + Helm 3.x + Terratest Go Framework
+• NGINX API Gateway + Load Balancing + SSL Termination
 • VMware OpenStack + Terraform 1.6+ + Ansible 6.x+
 ```
 
@@ -75,16 +75,15 @@ Keycloak:  https://keycloak.devops.local   - Identity Management
 Grafana:       https://grafana.devops.local     - Unified Dashboards
 Prometheus:    https://prometheus.devops.local  - Metrics & Alerting  
 Kibana:        https://kibana.devops.local      - Log Analysis
-Jaeger:        https://jaeger.devops.local      - Distributed Tracing
 AlertManager:  https://alerts.devops.local      - Alert Management
 ```
 
-### 🔒 **Security & GitOps**
+### � **CI/CD & Security**
 ```
+Jenkins:       https://jenkins.devops.local     - CI/CD Platform
+Gitea:         https://gitea.devops.local       - Git Repository
 Vault:         https://vault.devops.local       - Secrets Management
-ArgoCD:        https://argocd.devops.local      - GitOps Platform
-Kong Admin:    https://kong-admin.devops.local  - API Gateway Admin
-Security:      https://security.devops.local    - Vulnerability Scans
+NGINX:         https://api.devops.local         - API Gateway
 ```
 
 ## 🚀 **Enterprise Benefits**
@@ -92,19 +91,19 @@ Security:      https://security.devops.local    - Vulnerability Scans
 ### **Operational Excellence**
 - **99.9% Uptime** with proactive monitoring and self-healing
 - **< 5min MTTD** (Mean Time To Detection) for critical issues
-- **10x Faster** deployments with GitOps automation
-- **Zero-Downtime** releases with blue/green deployments
+- **10x Faster** deployments with CI/CD automation
+- **Zero-Downtime** releases with rolling deployments
 
-### **Security & Compliance** 
+### **Security & Compliance**
 - **Zero-Trust** architecture with centralized secrets
-- **Continuous Security** scanning in CI/CD pipelines
 - **Policy-as-Code** compliance with automated reporting
 - **End-to-End Encryption** with automated PKI management
+- **Centralized API Gateway** with rate limiting and security
 
 ### **Developer Productivity**
-- **Self-Service** infrastructure through GitOps workflows  
+- **Self-Service** infrastructure through Jenkins pipelines
 - **Unified Monitoring** across all platforms and services
 - **Automated Testing** with infrastructure validation
-- **Enterprise Integration** with LDAP/OAuth2/SAML
+- **Git-based Workflows** with self-hosted repositories
 
 This enterprise platform transformation delivers world-class DevOps capabilities that rival Fortune 500 implementations, providing complete observability, security, and modernization for any organization.

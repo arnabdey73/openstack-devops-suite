@@ -152,15 +152,14 @@ gitlab_registry_enable: true
 gitlab_pages_enabled: false
 ```
 
-## 🔄 GitLab CI/CD Pipeline
+## 🔄 Jenkins CI/CD Pipeline
 
-The included `.gitlab-ci.yml` provides:
+The included `Jenkinsfile` provides:
 
 - **Validation**: Terraform and Ansible syntax checking
 - **Planning**: Infrastructure change planning
 - **Deployment**: Automated infrastructure provisioning and configuration
 - **Verification**: Service health checks
-- **Security**: Optional security scanning
 
 ### Pipeline Stages
 

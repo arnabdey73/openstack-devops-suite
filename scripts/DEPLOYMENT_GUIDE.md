@@ -185,9 +185,8 @@ Current limits (configurable in code):
 
 For each onboarded application, the system generates:
 
-### 1. GitLab CI/CD Pipeline (`.gitlab-ci.yml`)
+### 1. Jenkins CI/CD Pipeline (`Jenkinsfile`)
 - Framework-specific build stages
-- Security scanning (npm audit, safety)
 - Automated testing
 - Docker image building
 - Kubernetes deployment
@@ -205,7 +204,7 @@ For each onboarded application, the system generates:
 - Health check endpoints
 
 ### 4. Project Configuration
-- GitLab project with proper tags
+- Gitea repository with proper tags
 - Branch protection rules
 - Environment definitions
 - Webhook configurations
@@ -306,7 +305,7 @@ The 1-Click Application Onboarding Portal is now **production-ready**. Consider 
 - [ ] Slack/Teams notifications
 - [ ] Jira integration for ticket creation
 - [ ] Prometheus metrics export
-- [ ] ArgoCD GitOps integration
+- [ ] Jenkins pipeline integration
 - [ ] Vault secrets management
 - [ ] External DNS management
 

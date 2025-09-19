@@ -23,8 +23,9 @@ Successfully completed the migration from GitLab-centered DevOps suite to Jenkin
 
 ### 4. API Gateway (`roles/api_gateway/`)
 - **Purpose**: Kong + PostgreSQL API gateway management
-- **Reason for Removal**: API gateway functionality not needed for current scope
+- **Reason for Removal**: Replaced with enhanced NGINX API Gateway functionality
 - **Files Removed**: Complete role directory with Kong configurations
+- **Replacement**: NGINX API Gateway with rate limiting, SSL termination, and service routing
 
 ## New Architecture: Jenkins + Gitea
 

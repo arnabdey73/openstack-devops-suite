@@ -66,7 +66,7 @@ The following components can be added as future enhancements:
 - Service installation with enterprise-grade configurations
 - VMware environment optimization and monitoring
 - Application deployment with zero-downtime strategies
-- System hardening, security scanning, and compliance automation
+- System hardening and compliance automation
 - Secrets management integration with HashiCorp Vault
 
 **Observability Layer (Full Stack Monitoring):**
@@ -74,7 +74,6 @@ The following components can be added as future enhancements:
 - Prometheus metrics collection with comprehensive service discovery
 - Grafana dashboards with enterprise-grade visualizations
 - ELK Stack centralized logging with automated log parsing
-- Jaeger distributed tracing for microservices architecture
 - Alertmanager intelligent alerting with multi-channel notifications
 
 **Security Layer (DevSecOps Integration):**
@@ -85,21 +84,12 @@ The following components can be added as future enhancements:
 - Multi-authentication methods (LDAP, JWT, AppRole, Kubernetes)
 - SSL/TLS automation with PKI certificate management
 
-**GitOps Layer (Modern Deployment):**
+**CI/CD Layer (Modern Deployment):**
 
-- ArgoCD declarative continuous delivery platform
 - Jenkins CI/CD pipelines with Gitea integration and enterprise workflows
 - Infrastructure provisioning automation with approval gates
 - Configuration management with GitOps principles
 - Service health verification and automated rollback capabilities
-
-**API Gateway Layer (Enterprise Integration):**
-
-- Kong API Gateway with enterprise traffic management
-- Rate limiting, authentication, and bot detection
-- Service mesh capabilities with health checks
-- API analytics and comprehensive usage monitoring
-- OAuth2, JWT, and API key management
 
 ## 📦 Enterprise Roles
 
@@ -284,8 +274,6 @@ The Jenkins CI role in this suite can be easily configured to work with any of t
 - **🔍 Automated Log Correlation** - ELK stack with intelligent parsing
 - **🚨 Multi-Channel Alerting** - Email, Slack, PagerDuty integration  
 - **🔒 Zero-Trust Security** - Vault-backed secret rotation and PKI
-- **🎯 GitOps Automation** - ArgoCD with Helm chart management
-- **⚡ API Gateway Analytics** - Kong with rate limiting and bot protection
 
 ## 🏗️ Infrastructure Management
 
@@ -358,7 +346,6 @@ The suite includes a comprehensive Jenkins CI/CD setup with Gitea integration th
 - **Configuration Validation**: Ansible playbook syntax checking
 - **Automated Deployment**: Infrastructure provisioning and service configuration
 - **Health Verification**: Service availability and health checks
-- **Security Scanning**: Optional OWASP ZAP security scans
 
 ### Pipeline Stages
 
@@ -531,7 +518,6 @@ The Jenkins CI/CD pipeline automatically runs tests at different stages:
 - **Validation Stage**: Configuration and syntax checks
 - **Verify Stage**: Service connectivity and health checks  
 - **Performance Stage**: Basic load testing (optional)
-- **Security Stage**: OWASP ZAP security scanning (optional)
 
 ### Test Reports
 

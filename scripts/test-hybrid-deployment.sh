@@ -104,7 +104,7 @@ test_configuration_files() {
         "playbooks/kubernetes.yml"
         "roles/k8s_deployment/tasks/main.yml"
         "scripts/deploy-hybrid.sh"
-        ".gitlab-ci.yml"
+        "Jenkinsfile"
     )
     
     for file in "${config_files[@]}"; do

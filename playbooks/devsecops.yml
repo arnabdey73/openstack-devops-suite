@@ -10,7 +10,7 @@
   vars:
     # DevSecOps configuration
     devsecops_environment: "{{ environment_name | default('production') }}"
-    security_scanning_enabled: true
+    security_scanning_enabled: false
     vault_integration_enabled: true
     compliance_automation_enabled: true
     
